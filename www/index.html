@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Recettes de France</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IM+Fell+English:ital@0;1&display=swap');
+:root{
+  --bg:#07090f;--card:#0f1218;--gold:#c9a84c;--gold2:#e8c96a;--amber:#b8860b;
+  --text:#e8dcc8;--muted:#a08050;--muted2:#c8a870;--border:#2a2010;
+  --red:#c0392b;--green:#27ae60;--fs:1;
+}
+@media(min-width:768px){:root{--fs:1.3}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.header{padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:10px;background:var(--bg);flex-shrink:0;border-bottom:1px solid var(--border);text-align:center;position:relative}
+.header h1{font-family:'IM Fell English',serif;font-size:calc(20px * var(--fs));color:var(--gold);letter-spacing:1px}
+.header p{font-family:'Cormorant Garamond',serif;font-size:calc(11px * var(--fs));color:var(--muted2);margin-top:2px}
+.lang-btn{position:absolute;right:12px;top:calc(14px + env(safe-area-inset-top));background:none;border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:16px;cursor:pointer;color:var(--text)}
+.tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:10px 4px;font-family:'Cormorant Garamond',serif;font-size:calc(12px * var(--fs));color:var(--muted);text-align:center;cursor:pointer;border:none;background:none;transition:.2s}
+.tab.active{color:var(--gold);border-bottom:2px solid var(--gold)}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+/* MAP */
+#map{height:100%;width:100%}
+#map-wrap{height:100%;position:relative}
+.map-info{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:rgba(7,9,15,.85);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted2);z-index:1000;pointer-events:none;white-space:nowrap}
+/* LISTE */
+.search-wrap{padding:12px;position:relative}
+.search-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 36px 9px 14px;font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--text);outline:none}
+.search-input::placeholder{color:var(--muted)}
+.clear-btn{position:absolute;right:20px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--muted);border:none;color:#000;font-size:13px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.filters{display:flex;gap:6px;padding:0 12px 10px;overflow-x:auto;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filter-btn{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--muted2);font-family:'Cormorant Garamond',serif;font-size:calc(12px * var(--fs));cursor:pointer;white-space:nowrap}
+.filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold)}
+.recipe-list{padding:0 12px}
+.recipe-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.recipe-card:active{opacity:.7}
+.recipe-emoji{font-size:32px;flex-shrink:0}
+.recipe-info{flex:1;min-width:0}
+.recipe-name{font-family:'IM Fell English',serif;font-size:calc(16px * var(--fs));color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recipe-meta{font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted2);margin-top:2px}
+.recipe-region-tag{font-size:calc(11px * var(--fs));color:var(--muted);margin-top:3px}
+.fav-heart{font-size:20px;flex-shrink:0;cursor:pointer}
+/* DETAIL */
+#detail-panel{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:2000;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + env(safe-area-inset-bottom));display:none}
+.detail-header{padding:calc(14px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.back-btn{background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;flex-shrink:0;padding-top:2px}
+.detail-title-wrap{flex:1}
+.detail-emoji{font-size:40px;text-align:center;padding:16px 0 8px}
+.detail-name{font-family:'IM Fell English',serif;font-size:calc(22px * var(--fs));color:var(--gold)}
+.detail-sub{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--muted2);margin-top:2px}
+.detail-fav{background:none;border:none;font-size:24px;cursor:pointer;flex-shrink:0}
+.detail-body{padding:0 16px}
+.section-title{font-family:'IM Fell English',serif;font-size:calc(15px * var(--fs));color:var(--gold2);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.portions-ctrl{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.portions-btn{width:32px;height:32px;border-radius:50%;background:var(--border);border:none;color:var(--gold);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.portions-val{font-family:'Cormorant Garamond',serif;font-size:calc(16px * var(--fs));color:var(--text);min-width:80px;text-align:center}
+.ingr-list{list-style:none}
+.ingr-list li{font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--text);padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.ingr-list li span{color:var(--muted2)}
+.prep-text{font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--text);line-height:1.7;white-space:pre-line}
+.anecdote-box{background:var(--card);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:12px 14px;margin-top:8px}
+.anecdote-box p{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--muted2);font-style:italic;line-height:1.6}
+/* FAVORIS */
+.empty-state{text-align:center;padding:60px 20px;font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--muted)}
+.empty-state .big{font-size:48px;display:block;margin-bottom:12px}
+/* QUIZ */
+.quiz-wrap{padding:16px}
+.quiz-score{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--muted2);text-align:right;margin-bottom:12px}
+.quiz-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center}
+.quiz-emoji{font-size:52px;margin-bottom:12px}
+.quiz-question{font-family:'IM Fell English',serif;font-size:calc(18px * var(--fs));color:var(--text);margin-bottom:6px}
+.quiz-hint{font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted);margin-bottom:20px;font-style:italic}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quiz-opt{padding:10px 8px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));cursor:pointer;transition:.2s}
+.quiz-opt.correct{background:#1a3a1a;border-color:var(--green);color:#6fcf97}
+.quiz-opt.wrong{background:#3a1a1a;border-color:var(--red);color:#eb5757}
+.quiz-next{margin-top:14px;padding:10px 24px;background:var(--gold);border:none;border-radius:10px;color:#000;font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));cursor:pointer;display:none}
+.quiz-result{text-align:center;padding:30px 20px}
+.quiz-result .score-big{font-family:'IM Fell English',serif;font-size:calc(48px * var(--fs));color:var(--gold)}
+.quiz-restart{margin-top:16px;padding:10px 24px;background:var(--gold);border:none;border-radius:10px;color:#000;font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));cursor:pointer}
+/* SETTINGS */
+.settings-panel{padding:16px}
+.settings-section{margin-bottom:20px}
+.settings-section h3{font-family:'IM Fell English',serif;font-size:calc(14px * var(--fs));color:var(--gold2);margin-bottom:10px}
+
+.apps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.app-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.app-item img{width:56px;height:56px;border-radius:13px;background:var(--border)}
+.app-item span{font-family:'Cormorant Garamond',serif;font-size:9px;color:var(--muted);text-align:center;line-height:1.2}
+
+/* PHOTOS */
+.recipe-thumb{width:60px;height:60px;object-fit:cover;border-radius:10px;flex-shrink:0;background:var(--border)}
+.recipe-thumb-placeholder{width:60px;height:60px;border-radius:10px;flex-shrink:0;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:28px}
+.detail-photo{width:100%;height:220px;object-fit:cover;display:block;background:var(--border)}
+.detail-photo-placeholder{width:100%;height:220px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:64px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h1 id="h-title">🍽 Recettes de France</h1>
+    <p id="h-sub">66 recettes emblématiques</p>
+    <button class="lang-btn" onclick="toggleLang()">🇬🇧</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('list')" id="tab-list">📋 Recettes</button>
+    <button class="tab" onclick="showTab('map')" id="tab-map">🗺 Carte</button>
+    <button class="tab" onclick="showTab('favs')" id="tab-favs">❤️ Favoris</button>
+    <button class="tab" onclick="showTab('quiz')" id="tab-quiz">🎯 Quiz</button>
+    <button class="tab" onclick="showTab('settings')" id="tab-settings">📱</button>
+  </div>
+  <div class="main" id="main-area">
+    <!-- MAP TAB -->
+    <div id="tab-map-content" style="height:100%;display:none">
+      <div id="map-wrap" style="height:100%">
+        <div id="map"></div>
+        <div class="map-info" id="map-info">Touchez un marqueur pour voir la recette</div>
+      </div>
+    </div>
+    <!-- LIST TAB -->
+    <div id="tab-list-content">
+      <div class="search-wrap">
+        <input class="search-input" id="search-input" placeholder="Rechercher une recette..." oninput="filterList()" />
+        <button class="clear-btn" id="clear-btn" onclick="clearSearch()">✕</button>
+      </div>
+      <div class="filters" id="filter-bar"></div>
+      <div class="recipe-list" id="recipe-list"></div>
+    </div>
+    <!-- FAVS TAB -->
+    <div id="tab-favs-content" style="display:none">
+      <div class="recipe-list" id="favs-list" style="padding-top:12px"></div>
+    </div>
+    <!-- QUIZ TAB -->
+    <div id="tab-quiz-content" style="display:none">
+      <div class="quiz-wrap" id="quiz-wrap"></div>
+    </div>
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings-content" style="display:none">
+      <div class="settings-panel">
+
+        <div class="settings-section">
+          <h3 id="s-apps">Nos applications</h3>
+          <div class="apps-grid" id="apps-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- DETAIL PANEL -->
+  <div id="detail-panel">
+    <div class="detail-header">
+      <button class="back-btn" onclick="closeDetail()">‹</button>
+      <div class="detail-title-wrap">
+        <div class="detail-name" id="d-name"></div>
+        <div class="detail-sub" id="d-sub"></div>
+      </div>
+      <button class="detail-fav" id="d-fav" onclick="toggleFavDetail()">🤍</button>
+    </div>
+    <div class="detail-body">
+      <div id="d-photo-wrap"></div>
+      <div class="detail-emoji" id="d-emoji" style="display:none"></div>
+      <div class="section-title" id="d-ingr-title">Ingrédients</div>
+      <div class="portions-ctrl">
+        <button class="portions-btn" onclick="adjPortions(-1)">−</button>
+        <div class="portions-val" id="portions-val">4 personnes</div>
+        <button class="portions-btn" onclick="adjPortions(1)">+</button>
+      </div>
+      <ul class="ingr-list" id="d-ingr-list"></ul>
+      <div class="section-title" id="d-prep-title">Préparation</div>
+      <div class="prep-text" id="d-prep"></div>
+      <div class="section-title" id="d-anec-title">Anecdote historique</div>
+      <div class="anecdote-box"><p id="d-anec"></p></div>
+    </div>
+  </div>
+</div>
+<script>
+
+const PHOTOS = {
+  1:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Bouillabaisse_01.jpg/960px-Bouillabaisse_01.jpg',
+  2:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Cassoulet.cuit.jpg/960px-Cassoulet.cuit.jpg',
+  3:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Boeuf_Bourguignon_2022.jpg/960px-Boeuf_Bourguignon_2022.jpg',
+  4:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Soupe_%C3%A0_l%27oignon_01.JPG/960px-Soupe_%C3%A0_l%27oignon_01.JPG',
+  5:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/54._Quiche_lorraine.jpg/960px-54._Quiche_lorraine.jpg',
+  6:'https://upload.wikimedia.org/wikipedia/commons/d/db/Galette_Auray.jpg',
+  7:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Ratatouille_001.jpg/960px-Ratatouille_001.jpg',
+  8:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Salade_ni%C3%A7oise_001.jpg/960px-Salade_ni%C3%A7oise_001.jpg',
+  9:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/%C5%92uf_en_meurette.jpg/960px-%C5%92uf_en_meurette.jpg',
+  10:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Homard_%C3%A0_l%27am%C3%A9ricaine.jpg/960px-Homard_%C3%A0_l%27am%C3%A9ricaine.jpg',
+  11:'https://upload.wikimedia.org/wikipedia/commons/5/51/Pot-au-feu2.jpg',
+  12:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Matelote_anguilles.jpg/960px-Matelote_anguilles.jpg',
+  13:'https://upload.wikimedia.org/wikipedia/commons/8/8c/Anec_confitat.jpg',
+  14:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Tarte_Tatin_a_la_Michalak.jpg/960px-Tarte_Tatin_a_la_Michalak.jpg',
+  15:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Choucroute_d%27Alsace_001.jpg/1920px-Choucroute_d%27Alsace_001.jpg',
+  16:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Foie_gras_IMGP2349.jpg/960px-Foie_gras_IMGP2349.jpg',
+  17:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Creme_brul%C3%A9e.jpg/960px-Creme_brul%C3%A9e.jpg',
+  18:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Madeleine_02.JPG/960px-Madeleine_02.JPG',
+  19:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Croissant-newspaper-and-tea.jpg/960px-Croissant-newspaper-and-tea.jpg',
+  20:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Gigot_raccourci_cuit_%C3%A0_l%27ail.JPG/960px-Gigot_raccourci_cuit_%C3%A0_l%27ail.JPG',
+  21:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Swiss_fondue.jpg/500px-Swiss_fondue.jpg',
+  22:'https://upload.wikimedia.org/wikipedia/commons/3/30/Coq_au_vin_rouge.jpg',
+  23:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/French_Cheese_Souffle_%284522555015%29.jpg/960px-French_Cheese_Souffle_%284522555015%29.jpg',
+  24:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Magret_de_canard_02.jpg/960px-Magret_de_canard_02.jpg',
+  26:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Tartare_de_boeuf_charolais_01.jpg/960px-Tartare_de_boeuf_charolais_01.jpg',
+  28:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Blanquette_de_veau_%C3%A0_l%27ancienne_04.jpg/960px-Blanquette_de_veau_%C3%A0_l%27ancienne_04.jpg',
+  30:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Clafoutis2.jpg/960px-Clafoutis2.jpg',
+  31:'https://upload.wikimedia.org/wikipedia/commons/6/68/Brandade5.jpg',
+  33:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Paris-Brest_IMG_0875.JPG/960px-Paris-Brest_IMG_0875.JPG',
+  34:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Navarin_01.jpg/960px-Navarin_01.jpg',
+  36:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Hu%C3%AEtres_gratin%C3%A9es_au_beurre_d%27escargot.jpg/1920px-Hu%C3%AEtres_gratin%C3%A9es_au_beurre_d%27escargot.jpg',
+  37:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Kouignamann.JPG/960px-Kouignamann.JPG',
+  38:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Daube_proven%C3%A7ale_03.jpg/960px-Daube_proven%C3%A7ale_03.jpg',
+  39:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Socca_01.jpg/960px-Socca_01.jpg',
+  40:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Garbure_02.jpg/960px-Garbure_02.jpg',
+  41:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/%C3%8Eles_flottantes.jpg/960px-%C3%8Eles_flottantes.jpg',
+  42:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Tripous_auvergnats.jpg/960px-Tripous_auvergnats.jpg',
+  46:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Piperade_01.jpg/960px-Piperade_01.jpg',
+  49:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Caneles_stemilion.jpg/960px-Caneles_stemilion.jpg',
+  25:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Petites_goug%C3%A8res_ap%C3%A9ritif.jpg/960px-Petites_goug%C3%A8res_ap%C3%A9ritif.jpg',
+  27:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Andouillette_de_Troyes.jpg/960px-Andouillette_de_Troyes.jpg',
+  29:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Salade_lyonnaise.JPG/960px-Salade_lyonnaise.JPG',
+  32:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Escargot_de_Bourgogne_017.jpg/960px-Escargot_de_Bourgogne_017.jpg',
+  35:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Pain_depices_p1050128.jpg/960px-Pain_depices_p1050128.jpg',
+  43:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Grande_brioche_de_mariage_vend%C3%A9en.jpg/1280px-Grande_brioche_de_mariage_vend%C3%A9en.jpg',
+  44:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Truite_meuni%C3%A8re.jpg/960px-Truite_meuni%C3%A8re.jpg',
+  45:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Plus_gros_nougat_du_monde.jpg/960px-Plus_gros_nougat_du_monde.jpg',
+  47:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Putenroulade.JPG/960px-Putenroulade.JPG',
+  48:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Bisque_de_homard.jpg/960px-Bisque_de_homard.jpg',
+  50:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Bol_d%27aligot.jpg/960px-Bol_d%27aligot.jpg',
+  51:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Torta_di_riso.jpg/500px-Torta_di_riso.jpg',
+  52:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Profiterole_choc.jpg/960px-Profiterole_choc.jpg',
+  53:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Saint-honor%C3%A9_%28p%C3%A2tisserie%29.JPG/500px-Saint-honor%C3%A9_%28p%C3%A2tisserie%29.JPG',
+  54:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Passionfruit_souffle.jpg/960px-Passionfruit_souffle.jpg',
+  55:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Galette_Frangipane_2021.jpg/960px-Galette_Frangipane_2021.jpg',
+  56:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Galette_Comtoise.jpg/960px-Galette_Comtoise.jpg',
+  57:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Petit_sal%C3%A9_02.jpg/960px-Petit_sal%C3%A9_02.jpg',
+  58:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Filet_mignon_avec_gratin_dauphinois_et_pur%C3%A9e_de_c%C3%A9leri.jpg/500px-Filet_mignon_avec_gratin_dauphinois_et_pur%C3%A9e_de_c%C3%A9leri.jpg',
+  59:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Jielbeaumadier_carbonade_flamande_2010.jpg/960px-Jielbeaumadier_carbonade_flamande_2010.jpg',
+  60:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Jielbeaumadier_welsh_2010.jpg/960px-Jielbeaumadier_welsh_2010.jpg',
+  61:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Potjevleesch_22042019.jpg/500px-Potjevleesch_22042019.jpg',
+  62:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/02._Flamiche_picarde_%283%29.jpg/960px-02._Flamiche_picarde_%283%29.jpg',
+  63:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Ficelle_picarde_1.jpg/960px-Ficelle_picarde_1.jpg',
+  64:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Waterzooi_at_De_Vlaamsche_Pot_%282175547879%29.jpg/960px-Waterzooi_at_De_Vlaamsche_Pot_%282175547879%29.jpg',
+  65:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Tarte_maroilles_apr%C3%A8s_cuisson.JPG/960px-Tarte_maroilles_apr%C3%A8s_cuisson.JPG',
+  66:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Jielbeaumadier_chicon_au_jambon_maroilles_2010.jpg/960px-Jielbeaumadier_chicon_au_jambon_maroilles_2010.jpg',
+};
+const LANG = {
+  fr: {
+    'h-title':'🍽 Recettes de France','h-sub':'66 recettes emblématiques',
+    'tab-map':'🗺 Carte','tab-list':'📋 Recettes','tab-favs':'❤️ Favoris',
+    'tab-quiz':'🎯 Quiz','tab-settings':'📱',
+    'map-info':'Touchez un marqueur pour voir la recette',
+    's-apps':'Nos applications',
+    'search-ph':'Rechercher une recette...',
+    'all':'Toutes','filter-labels':{'nord':'Nord','ouest':'Ouest','est':'Est','sud-ouest':'Sud-Ouest','sud-est':'Sud-Est','centre':'Centre','paris':'Île-de-France'},
+    'ingr':'Ingrédients','prep':'Préparation','anec':'Anecdote historique',
+    'persons':'personnes','person':'personne',
+    'quiz-q':'De quelle région vient ce plat ?',
+    'quiz-score':'Score','quiz-next':'Suivant →','quiz-again':'Rejouer',
+    'quiz-result':'Résultat','quiz-excellent':'🏆 Excellent !','quiz-bien':'👍 Bien !','quiz-revoir':'📚 À revoir...','fav-empty':'Aucun favori pour l\'instant',
+    'fav-empty2':'Ajoutez des ♡ sur vos recettes préférées',
+    'back':'‹',
+  },
+  en: {
+    'h-title':'🍽 French Recipes','h-sub':'66 emblematic recipes',
+    'tab-map':'🗺 Map','tab-list':'📋 Recipes','tab-favs':'❤️ Favorites',
+    'tab-quiz':'🎯 Quiz','tab-settings':'📱',
+    'map-info':'Tap a marker to see the recipe',
+    's-apps':'Our apps',
+    'search-ph':'Search a recipe...',
+    'all':'All','filter-labels':{'nord':'North','ouest':'West','est':'East','sud-ouest':'South-West','sud-est':'South-East','centre':'Centre','paris':'Île-de-France'},
+    'ingr':'Ingredients','prep':'Preparation','anec':'Historical anecdote',
+    'persons':'servings','person':'serving',
+    'quiz-q':'Which region is this dish from?',
+    'quiz-score':'Score','quiz-next':'Next →','quiz-again':'Play again',
+    'quiz-result':'Result','quiz-excellent':'🏆 Excellent!','quiz-bien':'👍 Good!','quiz-revoir':'📚 Keep practising...','fav-empty':'No favorites yet',
+    'fav-empty2':'Add ♡ to your favorite recipes',
+    'back':'‹',
+  }
+};
+
+const RECIPES = [
+{id:1,emoji:'🐟',region:'sud-est',lat:43.3,lng:5.37,
+ fr:{name:'Bouillabaisse',sub:'Marseille, Provence',
+  ingr:[['Poissons variés (rascasse, saint-pierre, grondin)','1.5 kg'],['Pommes de terre','400 g'],['Tomates','400 g'],['Oignon','1'],['Ail','4 gousses'],['Safran','1 pincée'],['Huile d\'olive','6 c. à soupe'],['Bouquet garni','1'],['Fenouil','1 branche'],['Pain grillé (croûtons)','8 tranches'],['Rouille (ail, safran, jaune d\'œuf, huile)','100 g']],
+  prep:'Faites revenir oignon et ail dans l\'huile. Ajoutez tomates, pommes de terre, bouquet garni, fenouil et safran. Recouvrez d\'eau bouillante. Ajoutez les poissons fermes en premier, puis les fragiles. Cuisson 15 min à feu vif. Servez bouillon et poisson séparément, avec croûtons et rouille.',
+  anec:'La bouillabaisse vient du provençal "bouir-abaissar" (bouillir puis baisser le feu). À l\'origine, c\'était le repas des pêcheurs marseillais qui cuisinaient les invendus du marché. La charte de la Bouillabaisse de Marseille (1980) impose 4 espèces minimum dont la rascasse.'},
+ en:{name:'Bouillabaisse',sub:'Marseille, Provence',
+  ingr:[['Assorted fish (scorpionfish, John Dory, gurnard)','1.5 kg'],['Potatoes','400 g'],['Tomatoes','400 g'],['Onion','1'],['Garlic','4 cloves'],['Saffron','1 pinch'],['Olive oil','6 tbsp'],['Bouquet garni','1'],['Fennel','1 sprig'],['Toasted bread (croutons)','8 slices'],['Rouille (garlic, saffron, egg yolk, oil)','100 g']],
+  prep:'Sauté onion and garlic in oil. Add tomatoes, potatoes, bouquet garni, fennel and saffron. Cover with boiling water. Add firm fish first, then delicate ones. Cook 15 min over high heat. Serve broth and fish separately, with croutons and rouille.',
+  anec:'Bouillabaisse comes from the Provençal "bouir-abaissar" (boil then lower heat). Originally it was Marseille fishermen\'s meal, made from unsold market fish. The 1980 Marseille Bouillabaisse Charter requires at least 4 species including scorpionfish.'}},
+{id:2,emoji:'🫘',region:'sud-ouest',lat:43.21,lng:2.35,
+ fr:{name:'Cassoulet',sub:'Castelnaudary, Languedoc',
+  ingr:[['Haricots blancs secs (lingots)','500 g'],['Confit de canard','2 cuisses'],['Saucisse de Toulouse','300 g'],['Lard fumé','150 g'],['Épaule d\'agneau','300 g'],['Tomates concassées','200 g'],['Oignon','1'],['Ail','6 gousses'],['Bouquet garni','1'],['Chapelure','3 c. à soupe']],
+  prep:'Trempage des haricots 12h. Cuire 1h à l\'eau avec bouquet garni. Dans une cassole, alternez couches de haricots et viandes (lard, saucisse dorée, agneau, confit). Recouvrir du bouillon de cuisson. Parsemer de chapelure. Cuire 2h30 à 160°C. Casser la croûte 3 fois en cours de cuisson.',
+  anec:'La légende raconte que lors du siège de Castelnaudary (1355), les habitants affamés réunirent tous leurs vivres pour nourrir les défenseurs. Ce plat aurait redonné tant de vigueur aux soldats qu\'ils repoussèrent les Anglais. La ville se dispute la paternité avec Carcassonne et Toulouse.'},
+ en:{name:'Cassoulet',sub:'Castelnaudary, Languedoc',
+  ingr:[['Dried white beans (lingot)','500 g'],['Duck confit','2 legs'],['Toulouse sausage','300 g'],['Smoked bacon','150 g'],['Lamb shoulder','300 g'],['Crushed tomatoes','200 g'],['Onion','1'],['Garlic','6 cloves'],['Bouquet garni','1'],['Breadcrumbs','3 tbsp']],
+  prep:'Soak beans 12h. Cook 1h in water with bouquet garni. In a cassole dish, alternate layers of beans and meats (bacon, browned sausage, lamb, confit). Cover with cooking broth. Sprinkle breadcrumbs. Bake 2h30 at 160°C. Break the crust 3 times during cooking.',
+  anec:'Legend says during the 1355 siege of Castelnaudary, starving inhabitants pooled all their food to feed the defenders. The dish supposedly revived the soldiers who then repelled the English. The town disputes its origin with Carcassonne and Toulouse.'}},
+{id:3,emoji:'🥩',region:'est',lat:47.32,lng:5.04,
+ fr:{name:'Bœuf Bourguignon',sub:'Bourgogne',
+  ingr:[['Bœuf (paleron ou joue)','1.2 kg'],['Vin rouge de Bourgogne','75 cl'],['Lardons fumés','150 g'],['Champignons de Paris','250 g'],['Carottes','3'],['Oignons','2'],['Ail','3 gousses'],['Beurre','50 g'],['Farine','2 c. à soupe'],['Bouquet garni','1'],['Oignons grelots','12']],
+  prep:'Mariner le bœuf découpé 12h dans le vin avec carottes, oignons et bouquet garni. Égoutter, dorer la viande. Faire revenir lardons et légumes. Singer (fariner). Mouiller avec la marinade. Mijoter 3h à feu doux. 30 min avant : ajouter champignons sautés et oignons grelots glacés.',
+  anec:'Ce plat de ménage bourguignon fut popularisé par Auguste Escoffier au XIXe siècle. Julia Child l\'a rendu célèbre auprès des Américains dans son émission "The French Chef" (1963). La recette figure dans son livre "Mastering the Art of French Cooking" (1961), véritable bible de la cuisine française aux États-Unis.'},
+ en:{name:'Beef Bourguignon',sub:'Burgundy',
+  ingr:[['Beef (chuck or cheek)','1.2 kg'],['Red Burgundy wine','75 cl'],['Smoked lardons','150 g'],['Button mushrooms','250 g'],['Carrots','3'],['Onions','2'],['Garlic','3 cloves'],['Butter','50 g'],['Flour','2 tbsp'],['Bouquet garni','1'],['Pearl onions','12']],
+  prep:'Marinate diced beef 12h in wine with carrots, onions and bouquet garni. Drain, brown the meat. Sauté lardons and vegetables. Dust with flour. Deglaze with marinade. Simmer 3h on low heat. 30 min before: add sautéed mushrooms and glazed pearl onions.',
+  anec:'This Burgundy household dish was popularized by Auguste Escoffier in the 19th century. Julia Child made it famous to Americans on her "The French Chef" show (1963). The recipe appears in her "Mastering the Art of French Cooking" (1961), the bible of French cuisine in the US.'}},
+{id:4,emoji:'🧅',region:'paris',lat:48.85,lng:2.35,
+ fr:{name:'Soupe à l\'Oignon',sub:'Paris, Île-de-France',
+  ingr:[['Oignons','1 kg'],['Beurre','60 g'],['Vin blanc sec','15 cl'],['Bouillon de bœuf','1.5 l'],['Farine','2 c. à soupe'],['Pain de campagne','4 tranches'],['Gruyère râpé','150 g'],['Thym','2 brins'],['Laurier','1 feuille'],['Sel, poivre','']],
+  prep:'Émincer finement les oignons. Les caraméliser 45 min à feu moyen dans le beurre en remuant souvent. Singer, déglacer au vin blanc. Ajouter bouillon, thym, laurier. Mijoter 20 min. Verser dans bols allant au four. Poser tranches de pain, couvrir de gruyère. Gratiner 10 min sous le gril.',
+  anec:'Contrairement à la légende, la soupe à l\'oignon n\'a pas été inventée par Louis XV. Elle était déjà connue au Moyen Âge comme soupe des pauvres. Sa popularisation au XIXe siècle est liée aux Halles de Paris, où elle reconstituait les noctambules et les travailleurs de l\'aube au restaurant Au Pied de Cochon.'},
+ en:{name:'French Onion Soup',sub:'Paris, Île-de-France',
+  ingr:[['Onions','1 kg'],['Butter','60 g'],['Dry white wine','15 cl'],['Beef broth','1.5 l'],['Flour','2 tbsp'],['Country bread','4 slices'],['Grated Gruyère','150 g'],['Thyme','2 sprigs'],['Bay leaf','1'],['Salt, pepper','']],
+  prep:'Thinly slice onions. Caramelize 45 min over medium heat in butter, stirring often. Dust with flour, deglaze with white wine. Add broth, thyme, bay leaf. Simmer 20 min. Pour into oven-safe bowls. Place bread slices, cover with Gruyère. Broil 10 min.',
+  anec:'Despite the legend, onion soup was not invented by Louis XV. It was already known in the Middle Ages as a peasant soup. Its 19th century popularization is linked to Les Halles market in Paris, where it revived night owls and dawn workers at the restaurant Au Pied de Cochon.'}},
+{id:5,emoji:'🥧',region:'est',lat:48.69,lng:6.18,
+ fr:{name:'Quiche Lorraine',sub:'Nancy, Lorraine',
+  ingr:[['Pâte brisée','1 fond'],['Lardons fumés','200 g'],['Œufs','3'],['Crème fraîche épaisse','25 cl'],['Lait','10 cl'],['Noix de muscade','1 pincée'],['Sel, poivre',''],['Beurre (pour le moule)','']],
+  prep:'Préchauffer à 180°C. Foncer le moule beurré de pâte brisée, piquer le fond. Cuire à blanc 10 min. Faire revenir les lardons. Battre œufs, crème, lait, sel, poivre, muscade. Répartir les lardons sur le fond. Verser l\'appareil. Cuire 30 min jusqu\'à ce que la surface soit dorée et gonflée.',
+  anec:'La quiche lorraine originale ne contenait pas de fromage — seulement lardons, œufs et crème. Le nom vient du mot allemand "Kuchen" (gâteau). La Lorraine a longtemps été sous influence germanique. La version avec gruyère est une adaptation parisienne du XXe siècle qui s\'est répandue dans le monde entier.'},
+ en:{name:'Quiche Lorraine',sub:'Nancy, Lorraine',
+  ingr:[['Shortcrust pastry','1 shell'],['Smoked lardons','200 g'],['Eggs','3'],['Thick crème fraîche','25 cl'],['Milk','10 cl'],['Nutmeg','1 pinch'],['Salt, pepper',''],['Butter (for pan)','']],
+  prep:'Preheat to 180°C. Line buttered pan with pastry, prick base. Blind bake 10 min. Sauté lardons. Beat eggs, cream, milk, salt, pepper, nutmeg. Spread lardons on base. Pour custard. Bake 30 min until surface is golden and puffed.',
+  anec:'The original Quiche Lorraine contained no cheese — only lardons, eggs and cream. The name comes from the German word "Kuchen" (cake). Lorraine was long under Germanic influence. The version with Gruyère is a 20th century Parisian adaptation that spread worldwide.'}},
+{id:6,emoji:'🥞',region:'ouest',lat:48.11,lng:-1.68,
+ fr:{name:'Crêpes Bretonnes',sub:'Bretagne',
+  ingr:[['Farine de froment','250 g'],['Œufs','3'],['Lait','50 cl'],['Beurre fondu','50 g'],['Sel','1 pincée'],['Beurre salé (pour la cuisson)',''],['Sucre (facultatif)','']],
+  prep:'Mélanger farine et sel. Creuser un puits, ajouter les œufs. Incorporer le lait progressivement en fouettant. Ajouter le beurre fondu. Reposer 1h. Cuire dans une crêpière beurrée à feu vif, 1 min par côté. Pour les galettes bretonnes (salées), remplacer la farine par de la farine de sarrasin.',
+  anec:'La crêpe bretonne est indissociable de la Chandeleur (2 février) mais aussi de la culture celtique. La galette de sarrasin (blé noir) date du XIIe siècle, après le retour des croisades. Le blé noir, ramené d\'Orient, s\'adaptait parfaitement aux terres acides bretonnes. Les crêperies bretonnes ont colonisé le monde entier depuis les années 1970.'},
+ en:{name:'Breton Crêpes',sub:'Brittany',
+  ingr:[['Wheat flour','250 g'],['Eggs','3'],['Milk','50 cl'],['Melted butter','50 g'],['Salt','1 pinch'],['Salted butter (for cooking)',''],['Sugar (optional)','']],
+  prep:'Mix flour and salt. Make a well, add eggs. Gradually whisk in milk. Add melted butter. Rest 1h. Cook in a buttered crêpe pan over high heat, 1 min per side. For buckwheat galettes (savoury), replace flour with buckwheat flour.',
+  anec:'Breton crêpes are inseparable from Candlemas (February 2) and Celtic culture. The buckwheat galette dates from the 12th century, after the crusades. Buckwheat, brought from the East, adapted perfectly to Brittany\'s acidic soils. Breton crêperies have colonized the world since the 1970s.'}},
+{id:7,emoji:'🥘',region:'sud-est',lat:43.7,lng:7.27,
+ fr:{name:'Ratatouille',sub:'Nice, Provence-Alpes-Côte d\'Azur',
+  ingr:[['Aubergines','2'],['Courgettes','2'],['Poivrons rouges','2'],['Tomates','4'],['Oignon','1'],['Ail','4 gousses'],['Huile d\'olive','8 c. à soupe'],['Herbes de Provence','1 c. à soupe'],['Basilic frais',''],['Sel, poivre','']],
+  prep:'Couper tous les légumes en dés. Faire revenir séparément aubergines, courgettes et poivrons dans l\'huile. Faire suer oignon et ail, ajouter tomates. Réunir tous les légumes, assaisonner avec herbes de Provence. Mijoter 30 min. Pour la version tian (confit Byaldi), disposer en rondelles superposées et enfourner 1h30 à 140°C.',
+  anec:'La ratatouille est mentionnée pour la première fois dans les écrits culinaires au XVIIIe siècle. Le mot vient du patois "ratatolha". Ce plat paysan utilisant les légumes d\'été du jardin est devenu l\'emblème de la cuisine méditerranéenne française. Le film Ratatouille (Pixar, 2007) lui a donné une renommée mondiale.'},
+ en:{name:'Ratatouille',sub:'Nice, Provence-Alpes-Côte d\'Azur',
+  ingr:[['Eggplant','2'],['Zucchini','2'],['Red bell peppers','2'],['Tomatoes','4'],['Onion','1'],['Garlic','4 cloves'],['Olive oil','8 tbsp'],['Herbes de Provence','1 tbsp'],['Fresh basil',''],['Salt, pepper','']],
+  prep:'Dice all vegetables. Separately sauté eggplant, zucchini and peppers in oil. Sweat onion and garlic, add tomatoes. Combine all vegetables, season with herbes de Provence. Simmer 30 min. For the tian version (confit Byaldi), arrange in overlapping slices and bake 1h30 at 140°C.',
+  anec:'Ratatouille is first mentioned in culinary writings in the 18th century. The word comes from the patois "ratatolha". This peasant dish using summer garden vegetables became the emblem of French Mediterranean cuisine. The Pixar film Ratatouille (2007) gave it worldwide fame.'}},
+{id:8,emoji:'🥗',region:'sud-est',lat:43.7,lng:7.27,
+ fr:{name:'Salade Niçoise',sub:'Nice, Côte d\'Azur',
+  ingr:[['Thon au naturel','200 g'],['Anchois à l\'huile','8 filets'],['Tomates','3'],['Haricots verts cuits','150 g'],['Œufs durs','3'],['Olives noires niçoises','80 g'],['Poivron vert','1'],['Oignon rouge','1'],['Ail','1 gousse'],['Huile d\'olive, vinaigre','']],
+  prep:'Frotter le saladier avec l\'ail. Disposer les tomates en quartiers, haricots verts, poivron en lanières, oignon en rondelles. Ajouter le thon émietté, les anchois, les œufs en quartiers, les olives. Assaisonner généreusement d\'huile d\'olive. Ne jamais cuire les légumes (sauf haricots). Pas de pommes de terre dans l\'originale.',
+  anec:'La salade niçoise authentique ne contient ni pommes de terre ni haricots cuits selon les puristes de Nice. Elle naît au XIXe siècle comme simple salade de crudités du jardin niçois. La querelle entre les défenseurs de la recette traditionnelle et les "modernistes" fait rage. Le chef Jacques Médecin en établit la recette officielle dans son livre "La cuisine niçoise" (1972).'},
+ en:{name:'Salade Niçoise',sub:'Nice, Côte d\'Azur',
+  ingr:[['Tuna in water','200 g'],['Anchovies in oil','8 fillets'],['Tomatoes','3'],['Cooked green beans','150 g'],['Hard-boiled eggs','3'],['Niçoise black olives','80 g'],['Green pepper','1'],['Red onion','1'],['Garlic','1 clove'],['Olive oil, vinegar','']],
+  prep:'Rub salad bowl with garlic. Arrange tomato wedges, green beans, pepper strips, sliced onion. Add flaked tuna, anchovies, egg quarters, olives. Season generously with olive oil. Never cook the vegetables (except beans). No potatoes in the original.',
+  anec:'According to Nice purists, authentic salade niçoise contains neither potatoes nor cooked beans. It was born in the 19th century as a simple salad of fresh garden vegetables. The dispute between traditional recipe defenders and "modernists" rages on. Chef Jacques Médecin established the official recipe in "La cuisine niçoise" (1972).'}},
+{id:9,emoji:'🍷',region:'est',lat:47.05,lng:4.83,
+ fr:{name:'Œufs en Meurette',sub:'Bourgogne',
+  ingr:[['Œufs','4'],['Vin rouge de Bourgogne','50 cl'],['Lardons','100 g'],['Champignons','150 g'],['Oignon','1'],['Ail','2 gousses'],['Beurre','40 g'],['Farine','1 c. à soupe'],['Pain de campagne grillé','4 tranches'],['Bouquet garni','1']],
+  prep:'Faire réduire le vin de moitié avec oignon, ail, bouquet garni. Filtrer. Faire revenir lardons et champignons. Préparer un roux avec beurre et farine, mouiller avec le vin réduit. Mijoter 10 min pour obtenir une sauce veloutée. Pocher les œufs 3 min dans de l\'eau vinaigrée. Dresser sur croûtons frottés à l\'ail, napper de sauce meurette.',
+  anec:'La meurette est une sauce bourguignonne au vin rouge qui accompagne traditionnellement œufs, poissons et escargots. Son nom vient peut-être du mot "muire" (saumure). Cette recette illustre l\'art bourguignon de cuisiner le vin rouge, au point que certains disent que "la Bourgogne mange ce qu\'elle boit". Paul Bocuse en proposait une version raffinée dans ses restaurants.'},
+ en:{name:'Eggs in Red Wine Sauce',sub:'Burgundy',
+  ingr:[['Eggs','4'],['Red Burgundy wine','50 cl'],['Lardons','100 g'],['Mushrooms','150 g'],['Onion','1'],['Garlic','2 cloves'],['Butter','40 g'],['Flour','1 tbsp'],['Toasted country bread','4 slices'],['Bouquet garni','1']],
+  prep:'Reduce wine by half with onion, garlic, bouquet garni. Strain. Sauté lardons and mushrooms. Make a roux with butter and flour, add reduced wine. Simmer 10 min for a velvety sauce. Poach eggs 3 min in vinegared water. Serve on garlic-rubbed croutons, pour meurette sauce over.',
+  anec:'Meurette is a Burgundian red wine sauce traditionally accompanying eggs, fish and snails. Its name may come from "muire" (brine). This recipe illustrates the Burgundian art of cooking with red wine, to the point some say "Burgundy eats what it drinks". Paul Bocuse offered a refined version in his restaurants.'}},
+{id:10,emoji:'🦞',region:'ouest',lat:48.35,lng:-4.49,
+ fr:{name:'Homard à l\'Armoricaine',sub:'Bretagne',
+  ingr:[['Homard breton vivant','1 (700g)'],['Tomates','4'],['Oignon','1'],['Échalotes','3'],['Ail','3 gousses'],['Cognac','5 cl'],['Vin blanc sec','15 cl'],['Concentré de tomates','2 c. à soupe'],['Estragon',''],['Piment de Cayenne',''],['Beurre','60 g'],['Huile','']],
+  prep:'Couper le homard vivant en morceaux. Faire chauffer huile et beurre, saisir les morceaux 5 min. Flamber au cognac. Retirer. Suer échalotes, oignon, ail. Ajouter tomates, concentré, vin blanc, piment, estragon. Remettre le homard, couvrir, cuire 20 min. Dresser le homard, réduire la sauce, monter au beurre.',
+  anec:'Son nom prête à confusion : "armoricaine" vient d\'Armorique (l\'ancienne Bretagne). Mais selon l\'historien de la gastronomie Prosper Montagné, la recette aurait été inventée à Paris par Pierre Fraisse, chef d\'origine languedocienne, qui l\'aurait appelée "américaine" (pour sauce tomate pimentée). La Bretagne en revendique aujourd\'hui la paternité.'},
+ en:{name:'Lobster Armoricaine',sub:'Brittany',
+  ingr:[['Live Breton lobster','1 (700g)'],['Tomatoes','4'],['Onion','1'],['Shallots','3'],['Garlic','3 cloves'],['Cognac','5 cl'],['Dry white wine','15 cl'],['Tomato paste','2 tbsp'],['Tarragon',''],['Cayenne pepper',''],['Butter','60 g'],['Oil','']],
+  prep:'Cut live lobster into pieces. Heat oil and butter, sear pieces 5 min. Flambé with cognac. Remove. Sweat shallots, onion, garlic. Add tomatoes, paste, white wine, pepper, tarragon. Return lobster, cover, cook 20 min. Plate lobster, reduce sauce, finish with butter.',
+  anec:'Its name is confusing: "armoricaine" comes from Armorica (ancient Brittany). But gastronomy historian Prosper Montagné says the recipe was invented in Paris by Pierre Fraisse, a Languedocian chef, who called it "américaine" (for spiced tomato sauce). Brittany now claims its paternity.'}},
+
+
+{id:11,emoji:'🥩',region:'centre',lat:46.8,lng:1.7,
+ fr:{name:'Pot-au-Feu',sub:'Cuisine française classique',
+  ingr:[['Jarret de bœuf','600 g'],['Plat de côtes','400 g'],['Os à moelle','4'],['Carottes','4'],['Navets','3'],['Poireaux','3'],['Céleri-rave','1/2'],['Oignon piqué de clous de girofle','1'],['Bouquet garni','1'],['Gros sel, poivre en grains','']],
+  prep:'Plonger les viandes dans l\'eau froide avec l\'oignon piqué. Porter à ébullition, écumer. Ajouter les légumes et aromates. Cuire 3h à petit frémissement. 30 min avant la fin, ajouter les os à moelle enveloppés dans une gaze. Servir bouillon en entrée, puis viandes et légumes avec moutarde, cornichons et fleur de sel.',
+  anec:'Le pot-au-feu est considéré comme le plat national français par excellence. Brillat-Savarin l\'appelait "le grand baromètre de la civilisation". Il était présent dans tous les foyers français du XVe au XXe siècle, mijotant des heures dans un pot posé sur les braises de la cheminée. Henri IV souhaitait que chaque Français puisse avoir "une poule au pot" le dimanche.'},
+ en:{name:'Pot-au-Feu',sub:'Classic French cuisine',
+  ingr:[['Beef shank','600 g'],['Short ribs','400 g'],['Marrow bones','4'],['Carrots','4'],['Turnips','3'],['Leeks','3'],['Celeriac','1/2'],['Onion studded with cloves','1'],['Bouquet garni','1'],['Coarse salt, peppercorns','']],
+  prep:'Place meats in cold water with studded onion. Bring to boil, skim. Add vegetables and aromatics. Cook 3h at a gentle simmer. 30 min before end, add marrow bones wrapped in gauze. Serve broth as starter, then meats and vegetables with mustard, pickles and fleur de sel.',
+  anec:'Pot-au-feu is considered France\'s national dish par excellence. Brillat-Savarin called it "the great barometer of civilization". It was present in every French home from the 15th to 20th century, simmering for hours in a pot on the fireplace embers. Henri IV wished every Frenchman could have "a chicken in the pot" on Sundays.'}},
+{id:12,emoji:'🐟',region:'nord',lat:47.9,lng:0.22,
+ fr:{name:'Matelote d\'Anguille',sub:'Val de Loire',
+  ingr:[['Anguilles','1 kg'],['Vin rouge du Val de Loire','50 cl'],['Oignons','2'],['Échalotes','4'],['Ail','3 gousses'],['Champignons de Paris','200 g'],['Beurre','60 g'],['Farine','2 c. à soupe'],['Cognac','4 cl'],['Croûtons',''],['Persil frais','']],
+  prep:'Tronçonner les anguilles. Les faire revenir dans le beurre 5 min. Flamber au cognac. Retirer. Suer oignons, échalotes, ail. Singer. Mouiller au vin rouge, ajouter les anguilles. Cuire 25 min. Faire revenir les champignons séparément. Réunir, rectifier l\'assaisonnement. Servir avec croûtons frits et persil haché.',
+  anec:'La matelote désigne un ragoût de poissons d\'eau douce cuits au vin. La version à l\'anguille est typique du Val de Loire, où ces poissons peuplaient abondamment la Loire. L\'anguille est un poisson migrateur fascinant qui voyage de la Loire jusqu\'à la Mer des Sargasses pour se reproduire, puis revient. Sa population a décliné de 90% en 50 ans, la rendant aujourd\'hui menacée.'},
+ en:{name:'Eel Matelote',sub:'Loire Valley',
+  ingr:[['Eels','1 kg'],['Loire red wine','50 cl'],['Onions','2'],['Shallots','4'],['Garlic','3 cloves'],['Button mushrooms','200 g'],['Butter','60 g'],['Flour','2 tbsp'],['Cognac','4 cl'],['Croutons',''],['Fresh parsley','']],
+  prep:'Cut eels into sections. Brown in butter 5 min. Flambé with cognac. Remove. Sweat onions, shallots, garlic. Dust with flour. Add red wine and eels. Cook 25 min. Sauté mushrooms separately. Combine, adjust seasoning. Serve with fried croutons and chopped parsley.',
+  anec:'Matelote refers to a freshwater fish stew cooked in wine. The eel version is typical of the Loire Valley, where these fish abundantly populated the Loire. Eel is a fascinating migratory fish that travels from the Loire to the Sargasso Sea to reproduce, then returns. Its population has declined 90% in 50 years, making it endangered today.'}},
+{id:13,emoji:'🦆',region:'sud-ouest',lat:43.6,lng:1.44,
+ fr:{name:'Confit de Canard',sub:'Gascogne, Périgord',
+  ingr:[['Cuisses de canard gras','4'],['Gros sel','80 g'],['Graisse de canard','600 g'],['Ail','4 gousses'],['Thym','3 brins'],['Laurier','2 feuilles'],['Poivre noir','1 c. à café']],
+  prep:'Frotter les cuisses avec sel, ail écrasé, poivre, thym, laurier. Laisser mariner 12h au froid. Rincer, sécher. Faire fondre la graisse de canard à 80°C. Immerger les cuisses, cuire 2h30 à 80°C (la chair doit se détacher à l\'os). Conserver dans la graisse. Pour servir : dorer les cuisses à la poêle ou au four 200°C, 20 min, côté peau.',
+  anec:'Le confit est une technique de conservation antérieure aux réfrigérateurs, née dans le Sud-Ouest pour préserver la viande tout l\'hiver. "Confire" vient du latin "conficere" (préparer, préserver). La tradition du canard gras dans le Périgord et la Gascogne est liée à la production du foie gras, le confit utilisant les morceaux restants. Certains confits vieillissent plusieurs mois dans la graisse.'},
+ en:{name:'Duck Confit',sub:'Gascony, Périgord',
+  ingr:[['Fat duck legs','4'],['Coarse salt','80 g'],['Duck fat','600 g'],['Garlic','4 cloves'],['Thyme','3 sprigs'],['Bay leaves','2'],['Black pepper','1 tsp']],
+  prep:'Rub legs with salt, crushed garlic, pepper, thyme, bay leaf. Marinate 12h in cold. Rinse, dry. Melt duck fat to 80°C. Submerge legs, cook 2h30 at 80°C (meat should pull from bone). Store in fat. To serve: brown legs in pan or oven at 200°C, 20 min, skin side.',
+  anec:'Confit is a preservation technique predating refrigerators, born in South-West France to preserve meat all winter. "Confire" comes from Latin "conficere" (prepare, preserve). The fatty duck tradition in Périgord and Gascony is linked to foie gras production, with confit using the remaining cuts. Some confits age several months in the fat.'}},
+{id:14,emoji:'🍎',region:'ouest',lat:48.37,lng:1.37,
+ fr:{name:'Tarte Tatin',sub:'Lamotte-Beuvron, Sologne',
+  ingr:[['Pommes Golden ou Reinette','1.2 kg'],['Beurre demi-sel','100 g'],['Sucre','150 g'],['Pâte feuilletée ou brisée','1 rouleau'],['Vanille','1 gousse']],
+  prep:'Beurrer généreusement un moule à manqué. Saupoudrer de sucre. Couper les pommes en quartiers épais, les disposer serrées dans le moule. Parsemer de noisettes de beurre et graines de vanille. Caraméliser 20 min sur feu moyen. Recouvrir de pâte en rentrant les bords. Cuire 30 min à 180°C. Attendre 5 min avant de retourner sur le plat.',
+  anec:'La tarte Tatin doit son nom aux sœurs Stéphanie et Caroline Tatin, aubergistes à Lamotte-Beuvron au XIXe siècle. Selon la légende, Stéphanie, pressée, oublia la pâte et mit les pommes directement dans le moule beurré et sucré. Pour rattraper l\'erreur, elle posa la pâte par-dessus et retourna la tarte. Maxim\'s de Paris inscrit la recette à sa carte dans les années 1930.'},
+ en:{name:'Tarte Tatin',sub:'Lamotte-Beuvron, Sologne',
+  ingr:[['Golden or Reinette apples','1.2 kg'],['Salted butter','100 g'],['Sugar','150 g'],['Puff or shortcrust pastry','1 roll'],['Vanilla','1 pod']],
+  prep:'Generously butter a cake pan. Sprinkle with sugar. Cut apples into thick wedges, arrange tightly in pan. Dot with butter and vanilla seeds. Caramelize 20 min over medium heat. Cover with pastry, tucking edges. Bake 30 min at 180°C. Wait 5 min before turning out onto a plate.',
+  anec:'The tarte Tatin is named after sisters Stéphanie and Caroline Tatin, innkeepers at Lamotte-Beuvron in the 19th century. Legend says Stéphanie, in a hurry, forgot the pastry and put the apples directly in the buttered sugar pan. To fix the mistake, she placed the pastry on top and turned the tart upside down. Maxim\'s in Paris added it to their menu in the 1930s.'}},
+{id:15,emoji:'🥬',region:'est',lat:48.58,lng:7.75,
+ fr:{name:'Choucroute Garnie',sub:'Alsace',
+  ingr:[['Choucroute crue','1 kg'],['Palette de porc fumée','500 g'],['Jarret de porc','1'],['Saucisses de Strasbourg','4'],['Saucisse Montbéliard','2'],['Lard fumé','200 g'],['Riesling','20 cl'],['Oignons','2'],['Pommes de terre','800 g'],['Baies de genièvre, laurier, clous de girofle','']],
+  prep:'Faire revenir oignons dans le saindoux. Ajouter la choucroute rincée et essorée. Mouiller au Riesling, ajouter les épices. Enfouir les viandes fumées. Couvrir, cuire 2h à feu doux. Ajouter les pommes de terre 40 min avant la fin, les saucisses 15 min avant. Servir sur un grand plat.',
+  anec:'La choucroute (du latin "Surkrut", chou acide) est connue en Alsace depuis le XVe siècle. Le chou fermenté était une source de vitamine C précieuse pendant l\'hiver. La "garnie" avec ses viandes est une version festive apparue au XIXe siècle. L\'Alsace étant passée de France à l\'Allemagne et vice-versa, la choucroute incarne cette identité culturelle hybride et revendiquée.'},
+ en:{name:'Choucroute Garnie',sub:'Alsace',
+  ingr:[['Raw sauerkraut','1 kg'],['Smoked pork shoulder','500 g'],['Pork knuckle','1'],['Strasbourg sausages','4'],['Montbéliard sausage','2'],['Smoked bacon','200 g'],['Riesling','20 cl'],['Onions','2'],['Potatoes','800 g'],['Juniper berries, bay leaf, cloves','']],
+  prep:'Sauté onions in lard. Add rinsed, squeezed sauerkraut. Add Riesling and spices. Bury the smoked meats. Cover, cook 2h on low heat. Add potatoes 40 min before end, sausages 15 min before. Serve on a large platter.',
+  anec:'Sauerkraut (from Latin "Surkrut", sour cabbage) has been known in Alsace since the 15th century. Fermented cabbage was a precious source of vitamin C during winter. The "garnie" version with meats is a festive version from the 19th century. With Alsace passing between France and Germany, choucroute embodies this hybrid and proudly claimed cultural identity.'}},
+{id:16,emoji:'🪿',region:'sud-ouest',lat:44.84,lng:-0.57,
+ fr:{name:'Foie Gras',sub:'Périgord, Gascogne',
+  ingr:[['Foie gras de canard déveiné','500 g'],['Sel fin','8 g'],['Poivre blanc','2 g'],['Sucre','1 g'],['Sauternes ou Armagnac','2 c. à soupe']],
+  prep:'Sortir le foie gras à température ambiante 1h. Assaisonner sel, poivre, sucre sur toutes les faces. Arroser d\'alcool. Reconstituer le foie, le rouler dans un film alimentaire très serré. Cuire en terrine au bain-marie à 90°C pendant 40 min. Refroidir, réfrigérer 48h minimum. Servir frais en tranches avec pain brioché et fleur de sel.',
+  anec:'L\'engraissement forcé des oies (gavage) remonte à l\'Égypte ancienne (-2500 ans). Les Romains pratiquaient la "ficatum" (foie de figue). En France, c\'est Alsace et Gascogne qui développent cette tradition au XVIIIe siècle. Le foie gras d\'Alsace est à l\'oie, celui du Périgord et de Gascogne au canard. Son statut de "patrimoine gastronomique et culturel protégé de France" date de 2006.'},
+ en:{name:'Foie Gras',sub:'Périgord, Gascony',
+  ingr:[['Deveined duck foie gras','500 g'],['Fine salt','8 g'],['White pepper','2 g'],['Sugar','1 g'],['Sauternes or Armagnac','2 tbsp']],
+  prep:'Bring foie gras to room temperature for 1h. Season with salt, pepper, sugar on all sides. Drizzle with alcohol. Reshape the liver, roll very tightly in cling film. Cook in a terrine in a water bath at 90°C for 40 min. Cool, refrigerate 48h minimum. Serve cold in slices with brioche bread and fleur de sel.',
+  anec:'Force-feeding of geese (gavage) dates back to ancient Egypt (-2500 years). Romans practiced "ficatum" (fig-fattened liver). In France, Alsace and Gascony developed this tradition in the 18th century. Alsace foie gras uses goose, Périgord and Gascony use duck. Its status as "protected French gastronomic and cultural heritage" dates from 2006.'}},
+{id:17,emoji:'🍮',region:'sud-est',lat:43.3,lng:5.37,
+ fr:{name:'Crème Brûlée',sub:'Cuisine française classique',
+  ingr:[['Crème fleurette (35%)','50 cl'],['Jaunes d\'œufs','5'],['Sucre','80 g'],['Gousse de vanille','1'],['Cassonade (pour le caramel)','4 c. à soupe']],
+  prep:'Faire chauffer la crème avec la gousse de vanille fendue et grattée. Blanchir jaunes et sucre. Verser la crème chaude progressivement sur les jaunes en fouettant. Filtrer. Remplir des ramequins. Cuire au bain-marie à 100°C pendant 45 min. Réfrigérer 4h. Saupoudrer de cassonade, caraméliser au chalumeau.',
+  anec:'La première recette écrite de crème brûlée apparaît dans le livre de cuisine français "Le Cuisinier Royal et Bourgeois" de François Massialot (1691). La Catalogne et l\'Angleterre (Trinity College) en revendiquent aussi l\'invention. En Espagne, la "crema catalana" (parfumée à la cannelle et au zeste de citron) est sa cousine. Le chalumeau de cuisine est devenu populaire dans les années 1980.'},
+ en:{name:'Crème Brûlée',sub:'Classic French cuisine',
+  ingr:[['Heavy cream (35%)','50 cl'],['Egg yolks','5'],['Sugar','80 g'],['Vanilla pod','1'],['Brown sugar (for caramel)','4 tbsp']],
+  prep:'Heat cream with split, scraped vanilla pod. Whisk yolks and sugar until pale. Gradually pour hot cream over yolks, whisking. Strain. Fill ramekins. Bake in water bath at 100°C for 45 min. Refrigerate 4h. Sprinkle with brown sugar, caramelize with a torch.',
+  anec:'The first written recipe for crème brûlée appears in François Massialot\'s French cookbook "Le Cuisinier Royal et Bourgeois" (1691). Catalonia and England (Trinity College) also claim its invention. In Spain, "crema catalana" (flavored with cinnamon and lemon zest) is its cousin. The kitchen torch became popular in the 1980s.'}},
+{id:18,emoji:'🧁',region:'est',lat:48.76,lng:5.16,
+ fr:{name:'Madeleines de Commercy',sub:'Lorraine',
+  ingr:[['Farine','150 g'],['Sucre','150 g'],['Beurre fondu et refroidi','150 g'],['Œufs','3'],['Levure','1/2 sachet'],['Zeste de citron','1'],['Extrait de vanille','1 c. à café'],['Miel d\'acacia','1 c. à soupe']],
+  prep:'Blanchir œufs et sucre. Incorporer farine tamisée et levure. Ajouter beurre fondu, zeste, vanille, miel. Reposer 1h au froid (crucial pour la bosse). Remplir les moules beurrés et farinés aux 2/3. Enfourner à 220°C pendant 4 min, puis baisser à 180°C pour 8 min. La bosse se forme lors du choc thermique.',
+  anec:'Marcel Proust immortalise la madeleine dans "Du côté de chez Swann" (1913) : la bouchée de gâteau trempée dans du thé déclenche une mémoire involontaire et fait jaillir tout Combray. Cette "mémoire de la madeleine" est devenue la métaphore universelle de la mémoire sensorielle. La madeleine de Commercy aurait été créée au XVIIIe siècle par une jeune fille prénommée Madeleine au château de Commercy.'},
+ en:{name:'Madeleines de Commercy',sub:'Lorraine',
+  ingr:[['Flour','150 g'],['Sugar','150 g'],['Melted, cooled butter','150 g'],['Eggs','3'],['Baking powder','1/2 packet'],['Lemon zest','1'],['Vanilla extract','1 tsp'],['Acacia honey','1 tbsp']],
+  prep:'Whisk eggs and sugar until pale. Fold in sifted flour and baking powder. Add melted butter, zest, vanilla, honey. Rest 1h in cold (crucial for the hump). Fill buttered, floured moulds 2/3 full. Bake at 220°C for 4 min, then reduce to 180°C for 8 min. The hump forms from thermal shock.',
+  anec:'Marcel Proust immortalized the madeleine in "In Search of Lost Time" (1913): a bite of cake dipped in tea triggers involuntary memory, evoking all of Combray. This "madeleine moment" became the universal metaphor for sensory memory. The Commercy madeleine is said to have been created in the 18th century by a young woman named Madeleine at the Château de Commercy.'}},
+{id:19,emoji:'🥐',region:'paris',lat:48.85,lng:2.35,
+ fr:{name:'Croissant',sub:'Paris, Île-de-France',
+  ingr:[['Farine T45','500 g'],['Beurre AOC (tourage)','250 g'],['Lait tiède','28 cl'],['Sucre','60 g'],['Sel','10 g'],['Levure fraîche de boulanger','20 g'],['Jaune d\'œuf + lait (dorure)','']],
+  prep:'Pétrir farine, lait, sucre, sel, levure jusqu\'à obtenir une pâte lisse. Reposer 1h. Étaler le beurre froid en rectangle. Envelopper la pâte autour du beurre (tourage). Faire 3 tours doubles en pliant et étalant, en refroidissant 30 min entre chaque tour. Étaler en grand triangle, rouler en croissant. Dorer, laisser pousser 2h. Cuire 18 min à 180°C.',
+  anec:'Le croissant n\'est pas français à l\'origine ! Le "Kipferl" autrichien existait depuis le XIIIe siècle. La version feuilletée est attribuée à August Zang, boulanger viennois qui ouvre une boulangerie à Paris vers 1838. Le croissant devient le symbole du "petit-déjeuner français" au XXe siècle. Aujourd\'hui, 80% des croissants vendus en France sont fabriqués à partir de pâtes surgelées industrielles.'},
+ en:{name:'Croissant',sub:'Paris, Île-de-France',
+  ingr:[['T45 flour','500 g'],['AOC butter (lamination)','250 g'],['Warm milk','28 cl'],['Sugar','60 g'],['Salt','10 g'],['Fresh baker\'s yeast','20 g'],['Egg yolk + milk (glaze)','']],
+  prep:'Knead flour, milk, sugar, salt, yeast until smooth dough. Rest 1h. Shape cold butter into rectangle. Wrap dough around butter (lamination). Do 3 double folds, rolling and folding, cooling 30 min between each. Roll into large triangle, roll up into croissant shape. Glaze, prove 2h. Bake 18 min at 180°C.',
+  anec:'The croissant did not originally come from France! The Austrian "Kipferl" existed since the 13th century. The laminated version is attributed to August Zang, a Viennese baker who opened a bakery in Paris around 1838. The croissant became the symbol of "French breakfast" in the 20th century. Today, 80% of croissants sold in France are made from industrial frozen dough.'}},
+{id:20,emoji:'🐑',region:'ouest',lat:48.63,lng:-1.51,
+ fr:{name:'Gigot d\'Agneau de 7 Heures',sub:'Normandie, Bretagne',
+  ingr:[['Gigot d\'agneau','1 (2.5 kg)'],['Ail','8 gousses'],['Carottes','3'],['Oignons','3'],['Vin blanc','30 cl'],['Bouillon d\'agneau','30 cl'],['Thym, romarin, laurier',''],['Anchois à l\'huile','4 filets'],['Huile d\'olive',''],['Sel, poivre','']],
+  prep:'Piquer le gigot d\'ail et anchois. Colorer sur toutes les faces dans une cocotte. Réserver. Faire revenir légumes. Déglacer au vin blanc. Remettre le gigot, ajouter bouillon et aromates. Couvrir hermétiquement (luter la cocotte avec pâte de farine si besoin). Cuire 7h à 140°C. La viande se défait à la cuillère.',
+  anec:'La cuisson "7 heures" est une technique de braisage ultra-long qui attendrit les chairs les plus coriaces. Elle était pratiquée dans les grandes maisons bourgeoises du XIXe siècle qui disposaient de fours à chaleur constante. L\'agneau de pré-salé de la Baie du Mont-Saint-Michel est le plus réputé de France : il pâture dans les herbes salées des estrans, ce qui parfume naturellement sa viande.'},
+ en:{name:'7-Hour Lamb Leg',sub:'Normandy, Brittany',
+  ingr:[['Leg of lamb','1 (2.5 kg)'],['Garlic','8 cloves'],['Carrots','3'],['Onions','3'],['White wine','30 cl'],['Lamb stock','30 cl'],['Thyme, rosemary, bay leaf',''],['Anchovies in oil','4 fillets'],['Olive oil',''],['Salt, pepper','']],
+  prep:'Lard leg with garlic and anchovies. Brown on all sides in a casserole. Set aside. Sauté vegetables. Deglaze with white wine. Return lamb, add stock and aromatics. Cover tightly (seal casserole with flour paste if needed). Cook 7h at 140°C. Meat falls apart with a spoon.',
+  anec:'The "7-hour" cooking is an ultra-long braising technique that tenderizes the toughest meat. It was practiced in grand bourgeois homes of the 19th century with constant-heat ovens. Salt meadow lamb from Mont-Saint-Michel Bay is France\'s most prized: it grazes on salty shoreline grasses which naturally perfumes the meat.'}},
+
+
+{id:21,emoji:'🧀',region:'est',lat:45.9,lng:6.12,
+ fr:{name:'Fondue Savoyarde',sub:'Savoie',
+  ingr:[['Comté râpé','200 g'],['Beaufort râpé','200 g'],['Emmental de Savoie râpé','200 g'],['Vin blanc de Savoie (Apremont)','35 cl'],['Ail','2 gousses'],['Maïzena','1 c. à soupe'],['Kirsch','4 cl'],['Noix de muscade',''],['Pain de campagne rassis','600 g']],
+  prep:'Frotter le caquelon d\'ail. Chauffer le vin blanc. Ajouter les fromages progressivement en remuant en 8. Délayer la maïzena dans le kirsch, incorporer. Assaisonner. Maintenir à frémissement. Servir avec des cubes de pain rassis piqués sur des pics à fondue. La tradition veut que celui qui perd son pain paie une bouteille.',
+  anec:'La fondue savoyarde est née par nécessité dans les alpages : en hiver, les fromages durcissaient et devenaient difficiles à manger directement. Les bergers les fondaient avec du vin blanc local. Le caquelon (poêlon en terre cuite) est indispensable pour maintenir la chaleur. La popularisation touristique de la fondue date des années 1950 avec l\'essor des sports d\'hiver en Savoie.'},
+ en:{name:'Savoyard Fondue',sub:'Savoie',
+  ingr:[['Grated Comté','200 g'],['Grated Beaufort','200 g'],['Grated Savoie Emmental','200 g'],['Savoie white wine (Apremont)','35 cl'],['Garlic','2 cloves'],['Cornstarch','1 tbsp'],['Kirsch','4 cl'],['Nutmeg',''],['Stale country bread','600 g']],
+  prep:'Rub the caquelon with garlic. Heat white wine. Add cheeses gradually, stirring in a figure-8. Mix cornstarch in kirsch, incorporate. Season. Keep at a gentle simmer. Serve with stale bread cubes on fondue forks. Tradition says whoever drops their bread into the pot buys a bottle.',
+  anec:'Savoyard fondue was born from necessity in the alpine pastures: in winter, cheeses hardened and became difficult to eat directly. Shepherds melted them with local white wine. The caquelon (earthenware pot) is essential for maintaining heat. The tourist popularization of fondue dates from the 1950s with the rise of winter sports in Savoie.'}},
+{id:22,emoji:'🍗',region:'est',lat:47.05,lng:4.83,
+ fr:{name:'Coq au Vin',sub:'Bourgogne',
+  ingr:[['Coq ou poulet fermier découpé','1.5 kg'],['Vin rouge de Bourgogne','75 cl'],['Lardons','150 g'],['Champignons de Paris','250 g'],['Oignons grelots','16'],['Ail','4 gousses'],['Beurre','60 g'],['Farine','2 c. à soupe'],['Cognac','4 cl'],['Bouquet garni','1'],['Persil','']],
+  prep:'Mariner le poulet 12h dans le vin avec ail et bouquet garni. Égoutter, sécher. Dorer les morceaux dans le beurre. Flamber au cognac. Retirer. Faire revenir lardons, ajouter la farine, mouiller avec la marinade. Remettre le poulet, cuire 1h30 à couvert. Ajouter champignons sautés et oignons glacés 30 min avant.',
+  anec:'La légende prête au général Vercingétorix l\'invention de ce plat : il aurait envoyé un vieux coq coriace à César en signe de défi, qui l\'aurait fait mijoter dans du vin gaulois. Historiquement fantaisiste, mais la recette est bien bourguignonne et daterait du Moyen Âge. Julia Child en a fait son plat fétiche, le préparant en direct à la télévision américaine dès 1963.'},
+ en:{name:'Coq au Vin',sub:'Burgundy',
+  ingr:[['Rooster or free-range chicken, cut up','1.5 kg'],['Red Burgundy wine','75 cl'],['Lardons','150 g'],['Button mushrooms','250 g'],['Pearl onions','16'],['Garlic','4 cloves'],['Butter','60 g'],['Flour','2 tbsp'],['Cognac','4 cl'],['Bouquet garni','1'],['Parsley','']],
+  prep:'Marinate chicken 12h in wine with garlic and bouquet garni. Drain, dry. Brown pieces in butter. Flambé with cognac. Remove. Sauté lardons, add flour, deglaze with marinade. Return chicken, cook 1h30 covered. Add sautéed mushrooms and glazed onions 30 min before.',
+  anec:'Legend attributes the invention to General Vercingetorix: he supposedly sent a tough old rooster to Caesar as a sign of defiance, who had it simmered in Gallic wine. Historically fantastical, but the recipe is genuinely Burgundian and may date from the Middle Ages. Julia Child made it her signature dish, preparing it live on American television from 1963.'}},
+{id:23,emoji:'🫧',region:'centre',lat:48.0,lng:2.5,
+ fr:{name:'Soufflé au Fromage',sub:'Cuisine française classique',
+  ingr:[['Gruyère râpé','120 g'],['Beurre','40 g'],['Farine','40 g'],['Lait','25 cl'],['Œufs (jaunes + blancs)','4'],['Moutarde de Dijon','1 c. à café'],['Noix de muscade',''],['Sel, poivre',''],['Parmesan (pour chemiser)','30 g']],
+  prep:'Préchauffer à 200°C. Beurrer et chemiser les moules de parmesan. Préparer une béchamel épaisse. Hors du feu, ajouter gruyère, jaunes, moutarde, muscade. Monter les blancs en neige ferme avec une pincée de sel. Incorporer délicatement en 3 fois. Remplir les moules aux 3/4. Cuire 12-15 min SANS OUVRIR LE FOUR. Servir immédiatement.',
+  anec:'Le soufflé est l\'une des préparations les plus redoutées de la cuisine française, synonyme de défi technique pour les apprentis cuisiniers. Son nom vient du verbe "souffler" (gonfler). Il fut popularisé par Marie-Antoine Carême au XIXe siècle. La règle d\'or : "on attend le soufflé, le soufflé n\'attend pas." Sa fragilité en a fait le symbole de l\'angoisse culinaire.'},
+ en:{name:'Cheese Soufflé',sub:'Classic French cuisine',
+  ingr:[['Grated Gruyère','120 g'],['Butter','40 g'],['Flour','40 g'],['Milk','25 cl'],['Eggs (yolks + whites)','4'],['Dijon mustard','1 tsp'],['Nutmeg',''],['Salt, pepper',''],['Parmesan (for lining)','30 g']],
+  prep:'Preheat to 200°C. Butter and line moulds with parmesan. Make a thick béchamel. Off heat, add Gruyère, yolks, mustard, nutmeg. Whip egg whites to stiff peaks with a pinch of salt. Gently fold in 3 additions. Fill moulds 3/4 full. Bake 12-15 min WITHOUT OPENING THE OVEN. Serve immediately.',
+  anec:'The soufflé is one of the most dreaded preparations in French cuisine, synonymous with technical challenge for apprentice cooks. Its name comes from "souffler" (to puff). It was popularized by Marie-Antoine Carême in the 19th century. The golden rule: "you wait for the soufflé, the soufflé does not wait." Its fragility made it the symbol of culinary anxiety.'}},
+{id:24,emoji:'🦆',region:'sud-ouest',lat:43.94,lng:1.35,
+ fr:{name:'Magret de Canard',sub:'Périgord, Quercy',
+  ingr:[['Magrets de canard gras','2'],['Miel','2 c. à soupe'],['Sauce soja','1 c. à soupe'],['Vinaigre balsamique','2 c. à soupe'],['Fleur de sel',''],['Poivre du moulin',''],['Thym frais','']],
+  prep:'Quadriller la peau des magrets au couteau sans entamer la chair. Assaisonner. Déposer côté peau dans une poêle froide. Monter à feu moyen-fort. Cuire 8-10 min jusqu\'à peau dorée et croustillante. Retourner, cuire 3-4 min côté chair (rosé). Reposer 5 min sous aluminium. Mélanger miel, soja, vinaigre pour la sauce. Servir en tranches avec la sauce chauffée.',
+  anec:'Le magret (de l\'occitan "maigret", poitrine maigre) est la poitrine du canard gras élevé pour le foie gras. Sa générosité en gras intramusculaire le rapproche d\'une entrecôte. Ce morceau "inventé" dans les années 1960 par André Daguin, chef aveyronnais, était auparavant considéré comme sous-produit. Daguin eut l\'idée de le cuire comme une viande rouge, révolutionnant la gastronomie du Périgord.'},
+ en:{name:'Duck Magret',sub:'Périgord, Quercy',
+  ingr:[['Fat duck breast (magret)','2'],['Honey','2 tbsp'],['Soy sauce','1 tbsp'],['Balsamic vinegar','2 tbsp'],['Fleur de sel',''],['Freshly ground pepper',''],['Fresh thyme','']],
+  prep:'Score the skin in a crosshatch pattern without cutting into the flesh. Season. Place skin-side down in a cold pan. Bring to medium-high heat. Cook 8-10 min until skin is golden and crispy. Turn, cook 3-4 min flesh side (pink). Rest 5 min under foil. Mix honey, soy, vinegar for sauce. Serve sliced with warmed sauce.',
+  anec:'Magret (from Occitan "maigret", lean breast) is the breast of a duck raised for foie gras. Its generous intramuscular fat makes it close to a ribeye steak. This cut "invented" in the 1960s by André Daguin, an Aveyron chef, was previously considered a by-product. Daguin had the idea to cook it like red meat, revolutionizing Périgord gastronomy.'}},
+{id:25,emoji:'🧆',region:'est',lat:47.32,lng:5.04,
+ fr:{name:'Gougères',sub:'Bourgogne',
+  ingr:[['Farine','150 g'],['Beurre','80 g'],['Eau','25 cl'],['Œufs','4'],['Gruyère ou Comté râpé','120 g'],['Sel','1 c. à café'],['Moutarde de Dijon','1 c. à café'],['Poivre, noix de muscade','']],
+  prep:'Faire bouillir eau, beurre, sel. Hors du feu, verser farine d\'un coup. Mélanger vigoureusement. Remettre sur feu doux 2 min pour dessécher. Incorporer les œufs un à un. Ajouter fromage, moutarde, poivre, muscade. Former des petites boules à la poche à douille sur plaque beurrée. Dorer au jaune d\'œuf. Cuire 25 min à 180°C sans ouvrir.',
+  anec:'La gougère est une pâte à choux fromagée qui accompagne traditionnellement la dégustation des vins de Bourgogne. Servie à l\'apéritif chez les vignerons, elle permet de couvrir le palais avant de déguster les vins. Chablis et Auxerre en revendiquent l\'invention. La recette moderne date du XIXe siècle. C\'est l\'amuse-bouche incontournable de la gastronomie bourguignonne.'},
+ en:{name:'Gougères',sub:'Burgundy',
+  ingr:[['Flour','150 g'],['Butter','80 g'],['Water','25 cl'],['Eggs','4'],['Grated Gruyère or Comté','120 g'],['Salt','1 tsp'],['Dijon mustard','1 tsp'],['Pepper, nutmeg','']],
+  prep:'Boil water, butter, salt. Off heat, add flour all at once. Stir vigorously. Return to low heat 2 min to dry out. Incorporate eggs one by one. Add cheese, mustard, pepper, nutmeg. Pipe small balls onto a buttered tray. Glaze with egg yolk. Bake 25 min at 180°C without opening.',
+  anec:'Gougère is a cheese choux pastry traditionally served with Burgundy wine tastings. Served as an aperitif at winemakers, it coats the palate before tasting wines. Chablis and Auxerre both claim its invention. The modern recipe dates from the 19th century. It is the quintessential amuse-bouche of Burgundian gastronomy.'}},
+{id:26,emoji:'🥩',region:'paris',lat:48.85,lng:2.35,
+ fr:{name:'Tartare de Bœuf',sub:'Paris, Cuisine française classique',
+  ingr:[['Bœuf (rumsteck ou filet) haché minute','500 g'],['Câpres','2 c. à soupe'],['Cornichons','4'],['Oignon rouge','1 petit'],['Moutarde de Dijon','1 c. à soupe'],['Sauce Worcestershire','1 c. à café'],['Tabasco','quelques gouttes'],['Jaune d\'œuf','1'],['Persil, ciboulette',''],['Huile d\'olive','']],
+  prep:'Hacher la viande au couteau en petits dés (jamais au hachoir électrique). Mixer câpres, cornichons, oignon finement. Mélanger délicatement viande, moutarde, Worcestershire, Tabasco, huile. Incorporer les condiments hachés. Dresser en cercle, creuser un puits, y déposer le jaune d\'œuf. Servir aussitôt avec frites et salade.',
+  anec:'Contrairement à son nom, le tartare n\'a rien d\'exotique : la viande crue est consommée en Europe depuis l\'Antiquité. Son association avec les peuples turco-mongols (Tatars) viendrait d\'un mythe romantique du XIXe siècle. C\'est Auguste Escoffier qui codifie la recette moderne vers 1900. Le Steak tartare est devenu l\'emblème du bistrot parisien, avec son rituel d\'assaisonnement à la table.'},
+ en:{name:'Beef Tartare',sub:'Paris, Classic French cuisine',
+  ingr:[['Beef (rump or tenderloin), hand-chopped','500 g'],['Capers','2 tbsp'],['Cornichons','4'],['Red onion','1 small'],['Dijon mustard','1 tbsp'],['Worcestershire sauce','1 tsp'],['Tabasco','a few drops'],['Egg yolk','1'],['Parsley, chives',''],['Olive oil','']],
+  prep:'Dice meat with a knife into small pieces (never use electric mincer). Finely mince capers, cornichons, onion. Gently mix meat, mustard, Worcestershire, Tabasco, oil. Fold in chopped condiments. Shape in a ring, make a well, place egg yolk in center. Serve immediately with fries and salad.',
+  anec:'Despite its name, tartare has nothing exotic: raw meat has been eaten in Europe since antiquity. Its association with Turco-Mongol peoples (Tatars) stems from a 19th century romantic myth. Auguste Escoffier codified the modern recipe around 1900. Steak tartare became the emblem of the Parisian bistrot, with its ritual tableside seasoning.'}},
+{id:27,emoji:'🌭',region:'est',lat:48.58,lng:4.36,
+ fr:{name:'Andouillette de Troyes',sub:'Champagne-Ardenne',
+  ingr:[['Andouillettes de Troyes (AAAAA)','4'],['Moutarde de Reims','2 c. à soupe'],['Crème fraîche','15 cl'],['Échalotes','3'],['Beurre','30 g'],['Vin blanc de Champagne','10 cl'],['Thym, laurier',''],['Sel, poivre','']],
+  prep:'Inciser légèrement les andouillettes. Les faire colorer dans le beurre 5 min. Réserver. Dans la même poêle, suer les échalotes. Déglacer au vin blanc. Ajouter crème, moutarde. Remettre les andouillettes, cuire 10 min à feu doux. La sauce doit napper les andouillettes. Servir avec une purée de pommes de terre.',
+  anec:'L\'andouillette de Troyes est protégée par l\'AAAAA (Association Amicale des Amateurs d\'Andouillette Authentique), fondée en 1970, qui décerne son label aux charcuteries d\'excellence. C\'est une charcuterie rustique et puissante, à base d\'intestins de porc préparés selon une recette ancestrale troyenne. Son parfum prononcé en fait un produit de terroir très clivant... mais ses amateurs sont indéfectibles.'},
+ en:{name:'Andouillette de Troyes',sub:'Champagne-Ardenne',
+  ingr:[['Troyes andouillettes (AAAAA)','4'],['Reims mustard','2 tbsp'],['Crème fraîche','15 cl'],['Shallots','3'],['Butter','30 g'],['Champagne white wine','10 cl'],['Thyme, bay leaf',''],['Salt, pepper','']],
+  prep:'Lightly score the andouillettes. Brown in butter 5 min. Set aside. In same pan, sweat shallots. Deglaze with white wine. Add cream, mustard. Return andouillettes, cook 10 min on low heat. Sauce should coat the sausages. Serve with mashed potatoes.',
+  anec:'The Troyes andouillette is protected by the AAAAA (Friendly Association of Authentic Andouillette Lovers), founded in 1970, which awards its label to excellence charcuteries. It is a rustic, powerful charcuterie made from pork intestines prepared according to an ancestral Troyes recipe. Its strong aroma makes it a very divisive terroir product... but its fans are unwavering.'}},
+{id:28,emoji:'🍲',region:'centre',lat:48.0,lng:2.5,
+ fr:{name:'Blanquette de Veau',sub:'Cuisine française classique',
+  ingr:[['Épaule de veau','1 kg'],['Carottes','3'],['Oignons','2'],['Céleri','2 branches'],['Champignons de Paris','200 g'],['Beurre','60 g'],['Farine','40 g'],['Crème fraîche','20 cl'],['Jaunes d\'œufs','2'],['Citron','1'],['Bouquet garni, clous de girofle','']],
+  prep:'Blanchir le veau à l\'eau froide, égoutter. Recouvrir d\'eau froide avec légumes, aromates. Cuire 1h30 à frémissement. Préparer un roux blanc avec beurre et farine, délayer avec le bouillon. Ajouter champignons. Lier hors du feu avec jaunes et crème. Citronner. Ne JAMAIS faire bouillir après la liaison. Servir avec riz pilaf.',
+  anec:'La blanquette, dont le nom évoque la blancheur de la sauce, est l\'un des plats symboles de la cuisine bourgeoise française. Elle figure dans les livres de cuisine depuis le XVIIIe siècle. Son nom vient de "blanc" : viande non saisie, sauce blanche liée à la crème. C\'est le plat que Proust aimait manger chez sa tante Léonie, selon certains commentateurs de son œuvre.'},
+ en:{name:'Blanquette de Veau',sub:'Classic French cuisine',
+  ingr:[['Veal shoulder','1 kg'],['Carrots','3'],['Onions','2'],['Celery','2 stalks'],['Button mushrooms','200 g'],['Butter','60 g'],['Flour','40 g'],['Crème fraîche','20 cl'],['Egg yolks','2'],['Lemon','1'],['Bouquet garni, cloves','']],
+  prep:'Blanch veal in cold water, drain. Cover with cold water, add vegetables and aromatics. Cook 1h30 at a simmer. Make a white roux with butter and flour, thin with broth. Add mushrooms. Thicken off heat with yolks and cream. Add lemon juice. NEVER boil after thickening. Serve with pilaf rice.',
+  anec:'Blanquette, whose name evokes the whiteness of the sauce, is one of the symbols of French bourgeois cuisine. It appears in cookbooks since the 18th century. Its name comes from "blanc": unseared meat, white sauce bound with cream. Some commentators of his work say it was the dish Proust loved to eat at his aunt Léonie\'s.'}},
+{id:29,emoji:'🥗',region:'est',lat:45.74,lng:4.83,
+ fr:{name:'Salade Lyonnaise',sub:'Lyon, Rhône-Alpes',
+  ingr:[['Frisée (chicorée)','1 belle tête'],['Lardons fumés','150 g'],['Œufs','4'],['Croûtons aillés','100 g'],['Vinaigre de vin rouge','3 c. à soupe'],['Moutarde','1 c. à café'],['Huile de noix','3 c. à soupe'],['Échalote','1'],['Sel, poivre',''],['Vinaigre blanc (pochage)','']],
+  prep:'Laver et essorer la frisée. Faire revenir les lardons. Préparer une vinaigrette avec moutarde, vinaigre rouge, huile de noix, échalote. Pocher les œufs 3 min dans de l\'eau vinaigrée frémissante. Dans la poêle des lardons, déglacer au vinaigre rouge. Dresser la salade, ajouter lardons chauds, croûtons, œuf poché par-dessus. Napper de vinaigrette.',
+  anec:'La salade lyonnaise est le plat emblématique des bouchons lyonnais, ces restaurants typiques de la capitale de la gastronomie française. Lyon doit sa réputation culinaire à Paul Bocuse mais aussi aux "Mères lyonnaises", cuisinières legendaires du XIXe-XXe siècles comme Mère Brazier (première triple étoilée Michelin femme, 1933). Le bouchon est inseparable de la culture ouvrière et canut (tisserand) de Lyon.'},
+ en:{name:'Lyonnaise Salad',sub:'Lyon, Rhône-Alpes',
+  ingr:[['Frisée (curly endive)','1 large head'],['Smoked lardons','150 g'],['Eggs','4'],['Garlic croutons','100 g'],['Red wine vinegar','3 tbsp'],['Mustard','1 tsp'],['Walnut oil','3 tbsp'],['Shallot','1'],['Salt, pepper',''],['White vinegar (poaching)','']],
+  prep:'Wash and dry frisée. Sauté lardons. Make vinaigrette with mustard, red wine vinegar, walnut oil, shallot. Poach eggs 3 min in simmering vinegared water. In lardon pan, deglaze with red wine vinegar. Plate salad, add hot lardons, croutons, place poached egg on top. Drizzle with vinaigrette.',
+  anec:'Lyonnaise salad is the emblematic dish of Lyon\'s bouchons, the typical restaurants of France\'s gastronomic capital. Lyon owes its culinary reputation to Paul Bocuse but also to the "Mères lyonnaises", legendary female cooks of the 19th-20th centuries like Mère Brazier (first triple Michelin-starred woman, 1933). The bouchon is inseparable from Lyon\'s working-class and canuts (silk weavers) culture.'}},
+{id:30,emoji:'🍒',region:'centre',lat:45.77,lng:3.08,
+ fr:{name:'Clafoutis aux Cerises',sub:'Limousin, Corrèze',
+  ingr:[['Cerises noires entières (non dénoyautées)','500 g'],['Œufs','3'],['Farine','60 g'],['Sucre','100 g'],['Lait','30 cl'],['Crème fraîche','5 cl'],['Beurre fondu','30 g'],['Kirsch','1 c. à soupe'],['Sucre glace',''],['Sel','1 pincée']],
+  prep:'Préchauffer à 180°C. Beurrer généreusement un plat. Répartir les cerises non dénoyautées (les noyaux parfument). Battre œufs, sucre, sel. Incorporer farine tamisée, lait, crème, beurre fondu, kirsch. Verser sur les cerises. Cuire 35-40 min jusqu\'à coloration dorée et gonflement. Saupoudrer de sucre glace, servir tiède.',
+  anec:'Le clafoutis (du dialecte occitan "clafir", remplir) est le dessert emblématique du Limousin, région réputée pour ses cerises noires. Selon la tradition, on ne dénoyaute JAMAIS les cerises : les noyaux libèrent un arôme d\'amande amère à la cuisson. Hors saison, on le prépare avec des pruneaux (flognarde) ou des pommes. La recette figure dans Larousse Gastronomique depuis 1938.'},
+ en:{name:'Cherry Clafoutis',sub:'Limousin, Corrèze',
+  ingr:[['Whole black cherries (with pits)','500 g'],['Eggs','3'],['Flour','60 g'],['Sugar','100 g'],['Milk','30 cl'],['Crème fraîche','5 cl'],['Melted butter','30 g'],['Kirsch','1 tbsp'],['Powdered sugar',''],['Salt','1 pinch']],
+  prep:'Preheat to 180°C. Generously butter a baking dish. Spread unpitted cherries (pits add flavor). Whisk eggs, sugar, salt. Fold in sifted flour, milk, cream, melted butter, kirsch. Pour over cherries. Bake 35-40 min until golden and puffed. Dust with powdered sugar, serve warm.',
+  anec:'Clafoutis (from Occitan "clafir", to fill) is the emblematic dessert of Limousin, a region renowned for its black cherries. By tradition, cherries are NEVER pitted: the pits release a bitter almond aroma during cooking. Out of season, it\'s made with prunes (flognarde) or apples. The recipe has appeared in Larousse Gastronomique since 1938.'}},
+
+
+{id:31,emoji:'🐟',region:'sud-est',lat:43.64,lng:3.87,
+ fr:{name:'Brandade de Morue',sub:'Nîmes, Languedoc',
+  ingr:[['Morue salée (dessalée 48h)','600 g'],['Huile d\'olive','15 cl'],['Lait entier','10 cl'],['Ail','3 gousses'],['Persil',''],['Croûtons aillés',''],['Poivre noir','']],
+  prep:'Dessaler la morue 48h en changeant l\'eau 4 fois. La pocher 10 min dans de l\'eau frémissante. Égoutter, effeuiller en enlevant peaux et arêtes. Dans une casserole, travailler la morue à la spatule en incorporant alternativement huile tiède et lait chaud, comme une mayonnaise. Assaisonner. Servir tiède avec croûtons ou en gratin.',
+  anec:'La brandade vient du provençal "brandar" (remuer). La morue salée, importée de Scandinavie et du Canada depuis le XVe siècle, permettait de se nourrir en période de carême catholique. Nîmes et Marseille se disputent la paternité de la brandade. La version nîmoise (sans pommes de terre) est la plus authentique. La version avec pommes de terre, popularisée à Paris, est une adaptation du XIXe siècle.'},
+ en:{name:'Brandade de Morue',sub:'Nîmes, Languedoc',
+  ingr:[['Salt cod (desalted 48h)','600 g'],['Olive oil','15 cl'],['Whole milk','10 cl'],['Garlic','3 cloves'],['Parsley',''],['Garlic croutons',''],['Black pepper','']],
+  prep:'Desalt cod 48h, changing water 4 times. Poach 10 min in simmering water. Drain, flake removing skin and bones. In a saucepan, work cod with a spatula, alternately incorporating warm oil and hot milk, like making mayonnaise. Season. Serve warm with croutons or as a gratin.',
+  anec:'Brandade comes from Provençal "brandar" (to stir). Salt cod, imported from Scandinavia and Canada since the 15th century, allowed eating during Catholic Lent. Nîmes and Marseille dispute its paternity. The Nîmes version (without potatoes) is most authentic. The potato version, popularized in Paris, is a 19th century adaptation.'}},
+{id:32,emoji:'🐌',region:'est',lat:47.05,lng:4.83,
+ fr:{name:'Escargots de Bourgogne',sub:'Bourgogne',
+  ingr:[['Escargots de Bourgogne (cuits)','36'],['Beurre d\'ail persillé (beurre+ail+persil+échalote)','200 g'],['Ail','6 gousses'],['Persil plat','1 bouquet'],['Échalotes','2'],['Sel, poivre',''],['Coquilles (pour service)','36']],
+  prep:'Préparer le beurre en mixant beurre mou, ail écrasé, persil haché, échalotes, sel, poivre. Placer un escargot dans chaque coquille. Remplir généreusement de beurre persillé. Disposer les coquilles dans un plat à escargots. Cuire 12 min à 220°C jusqu\'à ce que le beurre bouillonne et dore. Servir avec pain de campagne.',
+  anec:'L\'escargot est consommé en France depuis la préhistoire (ossements dans les grottes). Les Romains les élevaient en "cochlearia". L\'escargot de Bourgogne (Helix pomatia) est le plus gros et le plus renommé, mais sa collecte est réglementée. La recette avec beurre à l\'ail et persil est codifiée au XIXe siècle. La France est le premier consommateur mondial d\'escargots (40 000 tonnes/an).'},
+ en:{name:'Burgundy Snails',sub:'Burgundy',
+  ingr:[['Burgundy snails (cooked)','36'],['Garlic-parsley butter (butter+garlic+parsley+shallot)','200 g'],['Garlic','6 cloves'],['Flat parsley','1 bunch'],['Shallots','2'],['Salt, pepper',''],['Shells (for serving)','36']],
+  prep:'Make butter by mixing soft butter, crushed garlic, chopped parsley, shallots, salt, pepper. Place one snail in each shell. Fill generously with parsley butter. Arrange shells in an escargot dish. Bake 12 min at 220°C until butter bubbles and browns. Serve with country bread.',
+  anec:'Snails have been eaten in France since prehistory (bones in caves). Romans kept them in "cochlearia" enclosures. Burgundy snails (Helix pomatia) are the largest and most prized, but their collection is regulated. The garlic-parsley butter recipe was codified in the 19th century. France is the world\'s top snail consumer (40,000 tonnes/year).'}},
+{id:33,emoji:'🎂',region:'ouest',lat:48.11,lng:-1.68,
+ fr:{name:'Paris-Brest',sub:'Île-de-France, Bretagne',
+  ingr:[['Pâte à choux','(eau 25cl, beurre 80g, farine 150g, œufs 4)'],['Amandes effilées','50 g'],['Crème mousseline praliné','(crème pâtissière 30cl + beurre 200g + praliné 100g)'],['Sucre glace',''],['Jaune d\'œuf (dorure)','']],
+  prep:'Réaliser la pâte à choux. Pocher en couronne sur plaque. Dorer, parsemer d\'amandes. Cuire 35 min à 180°C. Ouvrir en deux. Monter la crème mousseline : travailler le beurre en pommade, incorporer progressivement la crème pâtissière froide et le praliné. Garnir généreusement la couronne. Refermer, saupoudrer de sucre glace.',
+  anec:'Le Paris-Brest fut créé en 1910 par le pâtissier Louis Durand à Maisons-Laffitte, à la demande de Pierre Giffard, organisateur de la course cycliste Paris-Brest-Paris (535 km). La forme de couronne évoque une roue de vélo. Cette course créée en 1891 est la plus vieille épreuve cycliste au monde encore disputée (tous les 4 ans). Le Paris-Brest est devenu l\'une des pâtisseries françaises les plus aimées.'},
+ en:{name:'Paris-Brest',sub:'Île-de-France, Brittany',
+  ingr:[['Choux pastry','(water 25cl, butter 80g, flour 150g, eggs 4)'],['Sliced almonds','50 g'],['Praline mousseline cream','(custard 30cl + butter 200g + praline 100g)'],['Powdered sugar',''],['Egg yolk (glaze)','']],
+  prep:'Make choux pastry. Pipe in a ring on baking tray. Glaze, scatter almonds. Bake 35 min at 180°C. Slice in half horizontally. Make mousseline cream: beat butter to pomade, gradually incorporate cold custard and praline. Generously fill the ring. Close, dust with powdered sugar.',
+  anec:'The Paris-Brest was created in 1910 by pastry chef Louis Durand in Maisons-Laffitte, at the request of Pierre Giffard, organizer of the Paris-Brest-Paris cycling race (535 km). The ring shape evokes a bicycle wheel. This race, created in 1891, is the oldest cycling event still contested (every 4 years). The Paris-Brest has become one of France\'s most beloved pastries.'}},
+{id:34,emoji:'🐑',region:'centre',lat:48.0,lng:2.5,
+ fr:{name:'Navarin d\'Agneau Printanier',sub:'Cuisine française classique',
+  ingr:[['Épaule d\'agneau découpée','1 kg'],['Navets nouveaux','300 g'],['Carottes nouvelles','300 g'],['Petits pois frais','200 g'],['Pommes de terre grenailles','300 g'],['Oignons nouveaux','8'],['Ail','3 gousses'],['Tomates concassées','200 g'],['Bouillon d\'agneau','50 cl'],['Bouquet garni','1']],
+  prep:'Dorer les morceaux d\'agneau. Retirer. Faire revenir oignons et ail. Singer, ajouter tomates et bouillon. Remettre la viande, couvrir, cuire 45 min. Ajouter navets et carottes, cuire 20 min. Ajouter pommes de terre, cuire 15 min. Ajouter petits pois les 5 dernières minutes. Rectifier l\'assaisonnement. Parsemer de persil.',
+  anec:'Le navarin printanier est la quintessence du renouveau gastronomique du printemps français. Le mot "navarin" vient soit de "navet" (navet) soit de la bataille de Navarin (1827) selon les théories. C\'est l\'un des plats emblématiques de la gastronomie française bourgeoise du XIXe siècle. La version "printanière" avec légumes nouveaux est la plus festive, célébrée comme un rite de passage saisonnier.'},
+ en:{name:'Spring Lamb Navarin',sub:'Classic French cuisine',
+  ingr:[['Lamb shoulder, cut up','1 kg'],['Baby turnips','300 g'],['Baby carrots','300 g'],['Fresh peas','200 g'],['New potatoes','300 g'],['Spring onions','8'],['Garlic','3 cloves'],['Crushed tomatoes','200 g'],['Lamb stock','50 cl'],['Bouquet garni','1']],
+  prep:'Brown lamb pieces. Set aside. Sauté onions and garlic. Dust with flour, add tomatoes and stock. Return meat, cover, cook 45 min. Add turnips and carrots, cook 20 min. Add potatoes, cook 15 min. Add peas for last 5 minutes. Adjust seasoning. Garnish with parsley.',
+  anec:'Spring navarin is the quintessence of France\'s gastronomic spring renewal. The word "navarin" comes either from "navet" (turnip) or the Battle of Navarino (1827) depending on the theory. It\'s one of the emblematic dishes of 19th century French bourgeois gastronomy. The "printanière" version with new vegetables is the most festive, celebrated as a seasonal rite of passage.'}},
+{id:35,emoji:'🫚',region:'est',lat:47.32,lng:5.04,
+ fr:{name:'Pain d\'Épices de Dijon',sub:'Dijon, Bourgogne',
+  ingr:[['Farine de seigle','250 g'],['Farine de blé','100 g'],['Miel de fleurs','350 g'],['Lait tiède','15 cl'],['Bicarbonate de soude','1 c. à café'],['Anis étoilé','2'],['Cannelle','1 c. à café'],['Clous de girofle moulus','1/2 c. à café'],['Cardamome','1/2 c. à café'],['Sel','1 pincée']],
+  prep:'Chauffer doucement le miel jusqu\'à liquéfaction. Mélanger farines, bicarbonate, épices, sel. Verser le miel chaud progressivement. Ajouter le lait tiède pour obtenir une pâte souple. Verser dans un moule à cake beurré. Laisser reposer 1h. Cuire 50 min à 160°C. Laisser refroidir 24h avant de déguster — le pain d\'épices se bonifie avec le temps.',
+  anec:'Le pain d\'épices est connu en Chine depuis le IXe siècle (mi-kong). Les croisés le ramenèrent en Europe. Dijon devient sa capitale française au XVIIe siècle, bénéficiant des routes commerciales bourguignonnes pour l\'approvisionnement en épices. La Confrérie du Pain d\'Épices de Dijon perpétue la tradition. Le miel de Bourgogne, à base de sarrasin, donne sa couleur ambrée caractéristique.'},
+ en:{name:'Dijon Gingerbread',sub:'Dijon, Burgundy',
+  ingr:[['Rye flour','250 g'],['Wheat flour','100 g'],['Flower honey','350 g'],['Warm milk','15 cl'],['Baking soda','1 tsp'],['Star anise','2'],['Cinnamon','1 tsp'],['Ground cloves','1/2 tsp'],['Cardamom','1/2 tsp'],['Salt','1 pinch']],
+  prep:'Gently heat honey until liquid. Mix flours, baking soda, spices, salt. Gradually pour in hot honey. Add warm milk for a supple dough. Pour into a buttered loaf pan. Rest 1h. Bake 50 min at 160°C. Cool 24h before tasting — gingerbread improves with time.',
+  anec:'Gingerbread has been known in China since the 9th century (mi-kong). Crusaders brought it back to Europe. Dijon became France\'s gingerbread capital in the 17th century, benefiting from Burgundian trade routes for spice supply. The Brotherhood of Dijon Gingerbread perpetuates the tradition. Burgundy honey, made from buckwheat, gives its characteristic amber color.'}},
+{id:36,emoji:'🦪',region:'ouest',lat:45.88,lng:-1.18,
+ fr:{name:'Huîtres Gratinées',sub:'Charente-Maritime, Oléron',
+  ingr:[['Huîtres creuses n°3','12'],['Beurre','80 g'],['Échalotes','3'],['Persil','1 bouquet'],['Ail','2 gousses'],['Vin blanc','5 cl'],['Chapelure','50 g'],['Citron','1'],['Gruyère râpé','50 g'],['Sel, poivre','']],
+  prep:'Ouvrir les huîtres, récupérer le jus. Préparer un beurre à l\'échalote : suer échalotes et ail au beurre, déglacer au vin blanc, réduire. Ajouter persil haché. Déposer une huître dans chaque demi-coquille. Napper de beurre. Mélanger chapelure et gruyère, parsemer. Gratiner 5 min sous le gril. Servir avec citron.',
+  anec:'La France est le premier producteur européen d\'huîtres (100 000 tonnes/an). La côte atlantique (Marennes-Oléron, Arcachon) produit les huîtres creuses les plus réputées. La dégustation à l\'état naturel reste la plus appréciée, mais la version gratinée permet de valoriser les huîtres moins charnues. L\'huître plate (Ostrea edulis) fut quasi exterminée par des maladies dans les années 1970 ; l\'huître creuse japonaise (Crassostrea gigas) l\'a remplacée.'},
+ en:{name:'Gratin Oysters',sub:'Charente-Maritime, Oléron',
+  ingr:[['Oysters no. 3','12'],['Butter','80 g'],['Shallots','3'],['Parsley','1 bunch'],['Garlic','2 cloves'],['White wine','5 cl'],['Breadcrumbs','50 g'],['Lemon','1'],['Grated Gruyère','50 g'],['Salt, pepper','']],
+  prep:'Open oysters, reserve juice. Make shallot butter: sweat shallots and garlic in butter, deglaze with white wine, reduce. Add chopped parsley. Place an oyster in each half-shell. Spoon butter over. Mix breadcrumbs and Gruyère, sprinkle. Broil 5 min. Serve with lemon.',
+  anec:'France is Europe\'s top oyster producer (100,000 tonnes/year). The Atlantic coast (Marennes-Oléron, Arcachon) produces the most prized hollow oysters. Natural tasting remains most appreciated, but the gratin version enhances less meaty oysters. The flat oyster (Ostrea edulis) was nearly wiped out by disease in the 1970s; the Japanese hollow oyster (Crassostrea gigas) replaced it.'}},
+{id:37,emoji:'🍰',region:'ouest',lat:48.35,lng:-4.49,
+ fr:{name:'Kouign-Amann',sub:'Douarnenez, Bretagne',
+  ingr:[['Farine','250 g'],['Levure boulangère sèche','7 g'],['Eau tiède','15 cl'],['Sel','1 c. à café'],['Beurre demi-sel froid','200 g'],['Sucre','150 g']],
+  prep:'Faire une pâte à pain (farine, levure, eau, sel), pétrir 10 min. Reposer 1h. Étaler en rectangle. Parsemer de morceaux de beurre froid et sucre. Plier en 3, puis en 3 de nouveau. Étaler dans un moule beurré et sucré. Laisser pointer 30 min. Cuire 35 min à 200°C jusqu\'à caramélisation spectaculaire.',
+  anec:'Le kouign-amann (prononcer "kouign amann", qui signifie "gâteau beurre" en breton) fut inventé en 1860 par Yves-René Scordia, boulanger à Douarnenez. La légende dit qu\'à court de pâte à viennoiserie, il utilisa de la pâte à pain avec beaucoup de beurre et de sucre. Ce gâteau rustique est devenu l\'un des symboles de la pâtisserie bretonne et connaît un succès mondial depuis les années 2000.'},
+ en:{name:'Kouign-Amann',sub:'Douarnenez, Brittany',
+  ingr:[['Flour','250 g'],['Dry baker\'s yeast','7 g'],['Warm water','15 cl'],['Salt','1 tsp'],['Cold salted butter','200 g'],['Sugar','150 g']],
+  prep:'Make a bread dough (flour, yeast, water, salt), knead 10 min. Rest 1h. Roll into rectangle. Scatter cold butter pieces and sugar. Fold in 3, then fold in 3 again. Press into a buttered, sugared pan. Prove 30 min. Bake 35 min at 200°C until spectacular caramelization.',
+  anec:'Kouign-amann (pronounced "kouign amann", meaning "butter cake" in Breton) was invented in 1860 by Yves-René Scordia, a baker in Douarnenez. Legend says that short of pastry dough, he used bread dough with lots of butter and sugar. This rustic cake has become one of the symbols of Breton pastry and has enjoyed worldwide success since the 2000s.'}},
+{id:38,emoji:'🍲',region:'sud-est',lat:43.7,lng:5.38,
+ fr:{name:'Daube Provençale',sub:'Provence',
+  ingr:[['Bœuf (joue ou gîte)','1.2 kg'],['Vin rouge de Provence','75 cl'],['Lardons','150 g'],['Carottes','3'],['Oignons','2'],['Ail','5 gousses'],['Tomates concassées','300 g'],['Olives noires','100 g'],['Zeste d\'orange','1'],['Thym, laurier, romarin',''],['Poivre en grains, girofle','']],
+  prep:'Mariner le bœuf 24h dans le vin avec légumes et aromates. Égoutter. Dans une daubière en terre, alterner couches de viande et légumes. Ajouter tomates, olives, zeste d\'orange, épices. Mouiller avec la marinade. Fermer hermétiquement. Cuire 4h à 150°C. Servir le lendemain réchauffé — la daube est meilleure le jour suivant.',
+  anec:'La daube (du provençal "dobba") se cuit dans une daubière, un récipient en terre cuite ventru typique de Provence. La cuisson lente à l\'étouffée concentre les saveurs et attendrit les viandes les plus fermes. Virginia Woolf lui consacre une scène mémorable dans "La Promenade au phare" (1927). La daube froide, gélifiée, est également consommée en terrine, surtout en été.'},
+ en:{name:'Provençal Daube',sub:'Provence',
+  ingr:[['Beef (cheek or shin)','1.2 kg'],['Provence red wine','75 cl'],['Lardons','150 g'],['Carrots','3'],['Onions','2'],['Garlic','5 cloves'],['Crushed tomatoes','300 g'],['Black olives','100 g'],['Orange zest','1'],['Thyme, bay, rosemary',''],['Peppercorns, cloves','']],
+  prep:'Marinate beef 24h in wine with vegetables and aromatics. Drain. In a clay daubière, alternate layers of meat and vegetables. Add tomatoes, olives, orange zest, spices. Cover with marinade. Seal tightly. Cook 4h at 150°C. Serve the next day reheated — daube is better the following day.',
+  anec:'Daube (from Provençal "dobba") cooks in a daubière, a typical round-bellied earthenware vessel from Provence. Slow, sealed cooking concentrates flavors and tenderizes the firmest meats. Virginia Woolf devoted a memorable scene to it in "To the Lighthouse" (1927). Cold daube, jellied, is also eaten as terrine, especially in summer.'}},
+{id:39,emoji:'🫓',region:'sud-est',lat:43.7,lng:7.27,
+ fr:{name:'Socca Niçoise',sub:'Nice, Côte d\'Azur',
+  ingr:[['Farine de pois chiches','250 g'],['Eau','50 cl'],['Huile d\'olive','6 c. à soupe'],['Sel','1 c. à café'],['Poivre noir concassé',''],['Romarin (facultatif)','']],
+  prep:'Mélanger farine de pois chiches avec l\'eau froide progressivement pour éviter les grumeaux. Ajouter 4 c. d\'huile et le sel. Reposer 1h. Huiler généreusement une plaque en métal (idéalement en cuivre). Verser la pâte très finement (3-4 mm). Cuire sous le gril très chaud 10-12 min jusqu\'aux bords brûlés typiques. Poivrer généreusement. Servir brûlant.',
+  anec:'La socca est la street food emblématique de Nice, vendue depuis des siècles dans les rues du Vieux-Nice par des vendeurs ambulants. Elle est cuite dans des fours au feu de bois sur de grandes plaques de cuivre. Sa parentèle méditerranéenne est large : la farinata génoise, la panisse marseillaise. Nice, longtemps italienne (jusqu\'en 1860), a conservé cette tradition de la farine de pois chiches héritée de Gênes.'},
+ en:{name:'Niçoise Socca',sub:'Nice, Côte d\'Azur',
+  ingr:[['Chickpea flour','250 g'],['Water','50 cl'],['Olive oil','6 tbsp'],['Salt','1 tsp'],['Cracked black pepper',''],['Rosemary (optional)','']],
+  prep:'Mix chickpea flour with cold water gradually to avoid lumps. Add 4 tbsp oil and salt. Rest 1h. Generously oil a metal pan (ideally copper). Pour batter very thin (3-4 mm). Cook under very hot grill 10-12 min until typical burnt edges. Pepper generously. Serve piping hot.',
+  anec:'Socca is Nice\'s emblematic street food, sold for centuries in Old Nice\'s streets by street vendors. It is baked in wood-fired ovens on large copper pans. Its Mediterranean relatives are numerous: Genoese farinata, Marseille panisse. Nice, long Italian (until 1860), preserved this chickpea flour tradition inherited from Genoa.'}},
+{id:40,emoji:'🍲',region:'sud-ouest',lat:43.3,lng:-0.37,
+ fr:{name:'Garbure Gasconne',sub:'Gascogne, Béarn',
+  ingr:[['Chou vert','1/2'],['Haricots blancs','200 g'],['Carottes','3'],['Navets','2'],['Poireaux','2'],['Pommes de terre','3'],['Confit de canard','2 cuisses'],['Lard fumé','200 g'],['Saucisse de pays','2'],['Ail','4 gousses'],['Thym, laurier','']],
+  prep:'Faire tremper les haricots 12h. Dans une grande marmite, couvrir le lard de 3 litres d\'eau froide. Porter à ébullition, écumer. Ajouter légumes (sauf chou et pommes de terre), ail, aromates. Cuire 1h. Ajouter chou, pommes de terre, haricots égouttés. Cuire 40 min. Ajouter confit et saucisses les 20 dernières minutes. Rectifier, servir bouillant.',
+  anec:'La garbure est le plat rustique du Béarn et de Gascogne, cousine du cassoulet et du pot-au-feu. Le mot vient du gascon "garbe" (gerbe). C\'est une soupe-ragoût paysanne, consistante, qui tirait son nom de l\'abondance des légumes "en gerbe". La tradition veut qu\'on "fasse chabrot" en fin de repas : verser du vin rouge dans le fond de son assiette avec les dernières gouttes de bouillon.'},
+ en:{name:'Gascon Garbure',sub:'Gascony, Béarn',
+  ingr:[['Green cabbage','1/2'],['White beans','200 g'],['Carrots','3'],['Turnips','2'],['Leeks','2'],['Potatoes','3'],['Duck confit','2 legs'],['Smoked bacon','200 g'],['Country sausage','2'],['Garlic','4 cloves'],['Thyme, bay leaf','']],
+  prep:'Soak beans 12h. In a large pot, cover bacon with 3 litres cold water. Bring to boil, skim. Add vegetables (except cabbage and potatoes), garlic, aromatics. Cook 1h. Add cabbage, potatoes, drained beans. Cook 40 min. Add confit and sausages for last 20 minutes. Adjust, serve boiling.',
+  anec:'Garbure is the rustic dish of Béarn and Gascony, cousin of cassoulet and pot-au-feu. The word comes from Gascon "garbe" (sheaf). It is a hearty peasant soup-stew named for the abundance of vegetables "in a sheaf". Tradition calls for "faire chabrot" at meal\'s end: pouring red wine into the last drops of broth remaining in the bowl.'}},
+
+
+{id:41,emoji:'🍮',region:'centre',lat:47.4,lng:0.68,
+ fr:{name:'Île Flottante',sub:'Cuisine française classique',
+  ingr:[['Blancs d\'œufs','4'],['Sucre (meringue)','120 g'],['Crème anglaise (jaunes 4, sucre 80g, lait 50cl, vanille)',''],['Amandes effilées grillées','50 g'],['Caramel (sucre 100g)',''],['Sel','1 pincée']],
+  prep:'Crème anglaise : chauffer lait et vanille. Blanchir jaunes et sucre. Verser lait chaud, cuire à 82°C (à la nappe). Réfrigérer. Meringues : monter les blancs avec sel, ajouter sucre progressivement. Pocher à la cuillère dans de l\'eau frémissante 2 min par côté. Ou cuire au four 100°C 1h. Servir meringues flottant sur crème anglaise. Napper de caramel, parsemer d\'amandes.',
+  anec:'L\'île flottante (ou "œufs à la neige") est un dessert emblématique de la cuisine familiale française depuis le XVIIIe siècle. La distinction entre "île flottante" (meringue pochée) et "œufs à la neige" (meringue cuite au four) est souvent confondue. Ce dessert aérien et réconfortant figure dans "La Cuisinière de la campagne et de la ville" de Louis-Eustache Audot (1818), l\'un des grands classiques culinaires français.'},
+ en:{name:'Floating Island',sub:'Classic French cuisine',
+  ingr:[['Egg whites','4'],['Sugar (meringue)','120 g'],['Crème anglaise (4 yolks, 80g sugar, 50cl milk, vanilla)',''],['Toasted sliced almonds','50 g'],['Caramel (100g sugar)',''],['Salt','1 pinch']],
+  prep:'Crème anglaise: heat milk and vanilla. Whisk yolks and sugar. Pour hot milk over, cook to 82°C (coating consistency). Refrigerate. Meringues: whip whites with salt, gradually add sugar. Poach spoonfuls in simmering water 2 min each side. Or bake at 100°C 1h. Serve meringues floating on crème anglaise. Drizzle caramel, scatter almonds.',
+  anec:'Floating island (or "œufs à la neige") has been an emblematic French family dessert since the 18th century. The distinction between "île flottante" (poached meringue) and "œufs à la neige" (baked meringue) is often confused. This airy, comforting dessert appears in Louis-Eustache Audot\'s "La Cuisinière de la campagne et de la ville" (1818), one of the great French culinary classics.'}},
+{id:42,emoji:'🍖',region:'centre',lat:44.35,lng:2.57,
+ fr:{name:'Tripoux Aveyronnais',sub:'Aveyron, Rouergue',
+  ingr:[['Tripoux (paquets de panse et pieds de mouton)','1 kg'],['Vin blanc de pays','20 cl'],['Tomates','3'],['Oignons','2'],['Ail','4 gousses'],['Carottes','2'],['Bouquet garni','1'],['Lardons','100 g'],['Persil, thym',''],['Sel, poivre','']],
+  prep:'Faire revenir oignons et lardons. Ajouter ail, tomates concassées. Déposer les tripoux. Mouiller au vin blanc et eau à hauteur. Ajouter carottes, bouquet garni. Couvrir hermétiquement. Cuire 3h à 160°C ou 2h à la cocotte-minute. La viande doit être fondante. Servir avec des pommes de terre vapeur et persil haché.',
+  anec:'Les tripoux (ou "tripous") sont un plat de tradition aveyronnaise à base d\'abats de mouton (panse, pieds) ficelés en petits paquets. Ce plat de pauvres, né de la nécessité de tout utiliser de l\'animal, est devenu une fierté régionale. La foire aux tripoux d\'Aurillac est un événement majeur. En Auvergne, on dit que "celui qui n\'a pas mangé de tripoux ne connaît pas le vrai goût de la terre."'},
+ en:{name:'Aveyronnais Tripoux',sub:'Aveyron, Rouergue',
+  ingr:[['Tripoux (sheep tripe and feet packets)','1 kg'],['Country white wine','20 cl'],['Tomatoes','3'],['Onions','2'],['Garlic','4 cloves'],['Carrots','2'],['Bouquet garni','1'],['Lardons','100 g'],['Parsley, thyme',''],['Salt, pepper','']],
+  prep:'Sauté onions and lardons. Add garlic, crushed tomatoes. Place tripoux. Cover with white wine and water. Add carrots, bouquet garni. Seal tightly. Cook 3h at 160°C or 2h in pressure cooker. Meat should be meltingly tender. Serve with steamed potatoes and chopped parsley.',
+  anec:'Tripoux are a traditional Aveyron dish made from sheep offal (tripe, feet) tied into small packets. This peasant dish, born from necessity to use every part of the animal, became a regional pride. The Aurillac tripoux fair is a major event. In Auvergne, they say "he who has not eaten tripoux does not know the true taste of the earth."'}},
+{id:43,emoji:'🧁',region:'ouest',lat:46.67,lng:-1.43,
+ fr:{name:'Brioche Vendéenne',sub:'Vendée, Pays de la Loire',
+  ingr:[['Farine T45','500 g'],['Beurre doux','200 g'],['Œufs','4'],['Sucre','80 g'],['Levure fraîche','20 g'],['Lait tiède','5 cl'],['Fleur d\'oranger','2 c. à soupe'],['Rhum ambré','1 c. à soupe'],['Sel','8 g'],['Jaune d\'œuf (dorure)','']],
+  prep:'Délayer la levure dans le lait tiède. Mélanger farine, sucre, sel. Ajouter œufs, levure, arômes. Pétrir 15 min. Incorporer le beurre coupé en dés progressivement. Pétrir 10 min. Laisser pousser 2h. Rompre la pâte, façonner en tresse. Dorer. Laisser pousser 1h30. Dorer à nouveau. Cuire 30 min à 170°C.',
+  anec:'La brioche vendéenne est une spécialité incontournable des Pâques en Vendée. Sa caractéristique principale est l\'arôme de fleur d\'oranger et de rhum qui la distingue des brioches parisiennes. Tressée en 3 ou 4 brins, elle symbolise les liens familiaux. La tradition veut qu\'on la prépare le Vendredi Saint pour la déguster le dimanche de Pâques. Les Vendéens l\'appellent affectueusement "la gâche".'},
+ en:{name:'Vendée Brioche',sub:'Vendée, Loire Valley',
+  ingr:[['T45 flour','500 g'],['Unsalted butter','200 g'],['Eggs','4'],['Sugar','80 g'],['Fresh yeast','20 g'],['Warm milk','5 cl'],['Orange blossom water','2 tbsp'],['Aged rum','1 tbsp'],['Salt','8 g'],['Egg yolk (glaze)','']],
+  prep:'Dissolve yeast in warm milk. Mix flour, sugar, salt. Add eggs, yeast, flavorings. Knead 15 min. Gradually incorporate diced butter. Knead 10 min. Prove 2h. Knock back dough, braid. Glaze. Prove 1h30. Glaze again. Bake 30 min at 170°C.',
+  anec:'Vendée brioche is an essential Easter specialty in Vendée. Its main characteristic is the orange blossom and rum aroma that distinguishes it from Parisian brioches. Braided in 3 or 4 strands, it symbolizes family bonds. Tradition calls for preparing it on Good Friday to eat on Easter Sunday. Vendéens affectionately call it "la gâche".'}},
+{id:44,emoji:'🐟',region:'est',lat:45.9,lng:6.12,
+ fr:{name:'Truite aux Amandes',sub:'Savoie, Rhône-Alpes',
+  ingr:[['Truites portion (300g)','4'],['Amandes effilées','100 g'],['Beurre','100 g'],['Citron','2'],['Farine','4 c. à soupe'],['Persil plat','1 bouquet'],['Huile neutre','2 c. à soupe'],['Sel, poivre','']],
+  prep:'Fariner les truites. Les faire dorer dans beurre et huile, 5 min par côté. Réserver au chaud. Dans la même poêle, faire dorer les amandes à sec 3 min. Ajouter 60g de beurre, laisser noisetter. Presser le citron, ajouter persil haché. Verser ce beurre aux amandes sur les truites. Servir immédiatement avec des pommes vapeur.',
+  anec:'La truite aux amandes est l\'un des classiques de la cuisine de bistrot et de montagne français. Les truites des torrents de Savoie et du Dauphiné étaient abondantes jusqu\'au XXe siècle. La truite arc-en-ciel d\'élevage a largement remplacé la truite fario sauvage dans les restaurants. Le "beurre noisette" (beurre chauffé jusqu\'à prendre une teinte et un arôme de noisette) est une technique fondamentale de la cuisine française.'},
+ en:{name:'Trout with Almonds',sub:'Savoie, Rhône-Alpes',
+  ingr:[['Portion trout (300g)','4'],['Sliced almonds','100 g'],['Butter','100 g'],['Lemons','2'],['Flour','4 tbsp'],['Flat parsley','1 bunch'],['Neutral oil','2 tbsp'],['Salt, pepper','']],
+  prep:'Flour the trout. Brown in butter and oil, 5 min each side. Keep warm. In same pan, dry-toast almonds 3 min. Add 60g butter, cook to hazelnut brown. Squeeze lemon, add chopped parsley. Pour this almond butter over trout. Serve immediately with steamed potatoes.',
+  anec:'Trout with almonds is one of the classics of French bistrot and mountain cuisine. Savoie and Dauphiné mountain stream trout were abundant until the 20th century. Farmed rainbow trout has largely replaced wild brown trout in restaurants. "Beurre noisette" (butter heated until it takes on a hazelnut color and aroma) is a fundamental technique in French cuisine.'}},
+{id:45,emoji:'🍬',region:'sud-est',lat:44.55,lng:4.75,
+ fr:{name:'Nougat de Montélimar',sub:'Montélimar, Drôme',
+  ingr:[['Miel de lavande','300 g'],['Sucre','200 g'],['Glucose','50 g'],['Eau','5 cl'],['Blancs d\'œufs','2'],['Amandes entières grillées','200 g'],['Pistaches','80 g'],['Feuilles de pain azyme',''],['Beurre de cacao','20 g']],
+  prep:'Cuire sucre, glucose et eau à 145°C. Simultanément, cuire le miel à 130°C. Monter les blancs en neige. Verser d\'abord le miel chaud en filet sur les blancs en fouettant. Puis verser le sirop à 145°C. Incorporer beurre de cacao, amandes chaudes, pistaches. Étaler entre feuilles azyme. Laisser cristalliser 12h. Découper en tranches.',
+  anec:'La réputation de Montélimar comme capitale du nougat remonte au XVIIe siècle, grâce aux amandiers et aux lavandes abondants dans la région. L\'ordonnance royale de Louis XIV imposait la culture d\'amandiers à Montélimar. Le nougat AOC "Nougat de Montélimar" doit contenir 28% d\'amandes et 2% de pistaches minimum. La confiserie Chabert & Guillot perpétue la tradition depuis 1848.'},
+ en:{name:'Montélimar Nougat',sub:'Montélimar, Drôme',
+  ingr:[['Lavender honey','300 g'],['Sugar','200 g'],['Glucose','50 g'],['Water','5 cl'],['Egg whites','2'],['Toasted whole almonds','200 g'],['Pistachios','80 g'],['Rice paper sheets',''],['Cocoa butter','20 g']],
+  prep:'Cook sugar, glucose and water to 145°C. Simultaneously, cook honey to 130°C. Whip egg whites to stiff peaks. Pour hot honey in a thin stream over whites while whipping. Then pour 145°C syrup. Fold in cocoa butter, warm almonds, pistachios. Spread between rice paper. Let crystallize 12h. Slice.',
+  anec:'Montélimar\'s reputation as nougat capital dates from the 17th century, thanks to the region\'s abundant almond trees and lavender. Louis XIV\'s royal ordinance required almond tree cultivation in Montélimar. AOC "Nougat de Montélimar" must contain minimum 28% almonds and 2% pistachios. The Chabert & Guillot confectionery has perpetuated the tradition since 1848.'}},
+{id:46,emoji:'🫑',region:'sud-ouest',lat:43.48,lng:-1.56,
+ fr:{name:'Piperade Basque',sub:'Pays Basque',
+  ingr:[['Poivrons rouges','3'],['Poivrons verts','2'],['Tomates mûres','4'],['Oignons','2'],['Ail','3 gousses'],['Piment d\'Espelette','1 c. à café'],['Jambon de Bayonne','6 tranches fines'],['Œufs','4'],['Huile d\'olive','4 c. à soupe'],['Sel','']],
+  prep:'Faire revenir oignons et ail dans l\'huile. Ajouter poivrons en lanières, cuire 15 min. Ajouter tomates pelées et épépinées, piment d\'Espelette. Cuire 20 min à feu doux jusqu\'à compotage. Faire dorer le jambon séparément. Battre les œufs, les incorporer à la piperade hors du feu, mélanger doucement pour obtenir des œufs brouillés fondants. Servir avec le jambon.',
+  anec:'La piperade (du basque "piperrak", poivrons) est le plat national du Pays Basque. Elle illustre parfaitement l\'identité culinaire basque : poivrons doux, tomates et piment d\'Espelette, ce piment AOP cultivé dans 10 communes autour d\'Espelette. Le piment d\'Espelette, introduit d\'Amérique centrale au XVIe siècle, remplace le poivre noir dans toute la cuisine basque. La piperade accompagne œufs, jambon, poisson ou poulet.'},
+ en:{name:'Basque Piperade',sub:'Basque Country',
+  ingr:[['Red peppers','3'],['Green peppers','2'],['Ripe tomatoes','4'],['Onions','2'],['Garlic','3 cloves'],['Espelette pepper','1 tsp'],['Bayonne ham','6 thin slices'],['Eggs','4'],['Olive oil','4 tbsp'],['Salt','']],
+  prep:'Sauté onions and garlic in oil. Add pepper strips, cook 15 min. Add peeled, seeded tomatoes, Espelette pepper. Cook 20 min on low until compote-like. Brown ham separately. Beat eggs, fold into piperade off heat, stir gently for soft scrambled eggs. Serve with ham.',
+  anec:'Piperade (from Basque "piperrak", peppers) is the Basque Country\'s national dish. It perfectly illustrates Basque culinary identity: sweet peppers, tomatoes and Espelette pepper, this AOP chili grown in 10 communes around Espelette. Espelette pepper, introduced from Central America in the 16th century, replaces black pepper throughout Basque cuisine. Piperade accompanies eggs, ham, fish or chicken.'}},
+{id:47,emoji:'🥩',region:'est',lat:48.0,lng:5.0,
+ fr:{name:'Paupiettes de Veau',sub:'Bourgogne, Cuisine classique',
+  ingr:[['Escalopes de veau fines','4'],['Farce (chair à saucisse 150g, champignons 100g, échalotes, persil)',''],['Lardons fins','8 tranches'],['Beurre','50 g'],['Vin blanc','15 cl'],['Fond de veau','20 cl'],['Carottes','2'],['Oignon','1'],['Bouquet garni','1'],['Ficelle de cuisine','']],
+  prep:'Préparer la farce : mélanger chair à saucisse, champignons hachés, échalotes et persil sautés. Aplatir les escalopes, garnir de farce, rouler et ficeler. Entourer de lardons. Colorer dans le beurre. Ajouter légumes, mouiller au vin blanc et fond de veau. Braiser 45 min à couvert à 160°C. Servir nappé de sauce réduite.',
+  anec:'La paupiette (de l\'occitan "paupiet", petite bouchée) est un apprêt classique qui permet de présenter une viande roulée avec une farce. Ce mode de préparation date du Moyen Âge et figure dans tous les grands livres de cuisine classique. L\'art du ficelage est une technique que les bouchers et charcutiers français maîtrisent depuis des générations. Les paupiettes illustrent le génie culinaire français : transformer un morceau modeste en plat élégant.'},
+ en:{name:'Veal Paupiettes',sub:'Burgundy, Classic cuisine',
+  ingr:[['Thin veal escalopes','4'],['Stuffing (150g sausagemeat, 100g mushrooms, shallots, parsley)',''],['Thin lardons','8 slices'],['Butter','50 g'],['White wine','15 cl'],['Veal stock','20 cl'],['Carrots','2'],['Onion','1'],['Bouquet garni','1'],['Kitchen string','']],
+  prep:'Prepare stuffing: mix sausagemeat, chopped mushrooms, sautéed shallots and parsley. Flatten escalopes, fill with stuffing, roll and tie. Wrap with lardons. Brown in butter. Add vegetables, deglaze with white wine and veal stock. Braise 45 min covered at 160°C. Serve with reduced sauce.',
+  anec:'Paupiette (from Occitan "paupiet", small bite) is a classic preparation presenting rolled meat with a stuffing. This cooking method dates from the Middle Ages and appears in all major classic cookbooks. The art of trussing is a technique French butchers and charcutiers have mastered for generations. Paupiettes illustrate French culinary genius: transforming a modest cut into an elegant dish.'}},
+{id:48,emoji:'🦞',region:'ouest',lat:47.22,lng:-1.55,
+ fr:{name:'Bisque de Homard',sub:'Bretagne, Normandie',
+  ingr:[['Carcasses et têtes de homard','500 g'],['Carottes','2'],['Oignon','1'],['Céleri','2 branches'],['Tomates concassées','200 g'],['Cognac','6 cl'],['Vin blanc','20 cl'],['Crème fraîche','20 cl'],['Beurre','60 g'],['Farine','30 g'],['Estragon, thym, laurier',''],['Piment de Cayenne','']],
+  prep:'Concasser les carcasses. Les faire revenir vigoureusement dans le beurre. Flamber au cognac. Ajouter légumes, faire revenir. Singer. Ajouter tomates, vin blanc, eau, aromates. Cuire 30 min. Mixer, passer au tamis fin. Remettre sur feu, ajouter crème. Assaisonner avec sel, poivre, piment de Cayenne. Finir avec beurre monté.',
+  anec:'La bisque est une des sauces les plus raffinées de la cuisine française, tirée des carcasses de crustacés. Menagier de Paris (1393) mentionne une "besque" de crabe. Le terme "bisque" viendrait de Biscaye (golfe de Gascogne), réputé pour ses crustacés. Auguste Escoffier codifie la bisque moderne. Elle symbolise l\'art français du recyclage gastronomique : rien n\'est perdu, même les coquilles servent à créer de la saveur.'},
+ en:{name:'Lobster Bisque',sub:'Brittany, Normandy',
+  ingr:[['Lobster shells and heads','500 g'],['Carrots','2'],['Onion','1'],['Celery','2 stalks'],['Crushed tomatoes','200 g'],['Cognac','6 cl'],['White wine','20 cl'],['Crème fraîche','20 cl'],['Butter','60 g'],['Flour','30 g'],['Tarragon, thyme, bay leaf',''],['Cayenne pepper','']],
+  prep:'Crush shells. Vigorously sauté in butter. Flambé with cognac. Add vegetables, sauté. Dust with flour. Add tomatoes, white wine, water, aromatics. Cook 30 min. Blend, pass through fine sieve. Return to heat, add cream. Season with salt, pepper, cayenne. Finish with mounted butter.',
+  anec:'Bisque is one of the most refined sauces in French cuisine, drawn from crustacean shells. Le Menagier de Paris (1393) mentions a crab "besque". The term "bisque" may come from Biscay (Bay of Gascony), renowned for its shellfish. Auguste Escoffier codified the modern bisque. It symbolizes the French art of gastronomic recycling: nothing is wasted, even shells create flavor.'}},
+{id:49,emoji:'🧁',region:'sud-ouest',lat:44.84,lng:-0.57,
+ fr:{name:'Cannelés Bordelais',sub:'Bordeaux, Gironde',
+  ingr:[['Lait entier','50 cl'],['Sucre','250 g'],['Farine','100 g'],['Œufs','2 + 2 jaunes'],['Beurre fondu','50 g'],['Rhum ambré','5 cl'],['Extrait de vanille','1 c. à café'],['Cire d\'abeille ou beurre (moules)','']],
+  prep:'Faire bouillir lait et beurre. Mélanger sucre et farine. Ajouter œufs et jaunes. Verser le lait chaud progressivement. Ajouter rhum et vanille. Reposer 24h au réfrigérateur (essentiel). Badigeonner les moules en cuivre de cire d\'abeille. Cuire à 250°C pendant 10 min puis 175°C pendant 50 min. L\'extérieur doit être brun sombre, l\'intérieur alvéolé et fondant.',
+  anec:'Les cannelés (ou "canelés") sont une spécialité bordelaise dont l\'origine est disputée. Une légende les attribue aux moines Annonciades du XVIIIe siècle qui utilisaient les jaunes d\'œufs laissés par les viticulteurs (qui clarifiaient le vin avec les blancs). La vogue des cannelés éclate dans les années 1980 à Paris. Les vrais cannelés se font dans des moules en cuivre qui coûtent cher mais sont indispensables pour la caramélisation parfaite.'},
+ en:{name:'Bordeaux Cannelés',sub:'Bordeaux, Gironde',
+  ingr:[['Whole milk','50 cl'],['Sugar','250 g'],['Flour','100 g'],['Eggs','2 + 2 yolks'],['Melted butter','50 g'],['Aged rum','5 cl'],['Vanilla extract','1 tsp'],['Beeswax or butter (moulds)','']],
+  prep:'Boil milk and butter. Mix sugar and flour. Add eggs and yolks. Pour hot milk in gradually. Add rum and vanilla. Rest 24h in refrigerator (essential). Brush copper moulds with beeswax. Bake at 250°C for 10 min then 175°C for 50 min. Exterior should be dark brown, interior honeycomb-like and custardy.',
+  anec:'Cannelés are a Bordeaux specialty whose origin is disputed. Legend attributes them to 18th century Annonciade nuns who used egg yolks left over from winemakers (who clarified wine with whites). The cannelé craze exploded in Paris in the 1980s. True cannelés require copper moulds which are expensive but essential for perfect caramelization.'}},
+{id:50,emoji:'🧀',region:'centre',lat:44.7,lng:2.8,
+ fr:{name:'Aligot Aubracois',sub:'Aubrac, Aveyron',
+  ingr:[['Pommes de terre à chair fondante','1 kg'],['Tome fraîche de Laguiole','500 g'],['Beurre','80 g'],['Crème fraîche épaisse','10 cl'],['Ail','2 gousses'],['Sel, poivre blanc','']],
+  prep:'Cuire les pommes de terre à l\'eau salée. Écraser finement avec beurre, crème, ail. Poivrer. Faire chauffer à feu doux. Ajouter la tome fraîche coupée en lamelles. Incorporer en tournant sans arrêt dans un sens : l\'aligot doit filer et former de longs rubans élastiques. Ce travail prend 10-15 min. Servir immédiatement.',
+  anec:'L\'aligot est né dans les monastères de l\'Aubrac au Moyen Âge. Les moines de la dômerie d\'Aubrac nourrissaient les pèlerins sur la route de Saint-Jacques-de-Compostelle avec cette "aligot" (du latin "aliquid", quelque chose). La tome fraîche de Laguiole (ou d\'Aubrac) est indispensable : c\'est une tome non affinée, différente de la tomme de Savoie. L\'aligot est aujourd\'hui symbole de la culture aveyronnaise et servi à toutes les fêtes de village.'},
+ en:{name:'Aligot Aubracois',sub:'Aubrac, Aveyron',
+  ingr:[['Waxy potatoes','1 kg'],['Fresh tome de Laguiole cheese','500 g'],['Butter','80 g'],['Thick crème fraîche','10 cl'],['Garlic','2 cloves'],['Salt, white pepper','']],
+  prep:'Cook potatoes in salted water. Mash finely with butter, cream, garlic. Season with pepper. Heat on low. Add fresh tome cut in thin strips. Incorporate by stirring constantly in one direction: the aligot should stretch and form long elastic ribbons. This takes 10-15 min. Serve immediately.',
+  anec:'Aligot was born in Aubrac monasteries in the Middle Ages. The monks of Aubrac\'s dômerie fed pilgrims on the Santiago de Compostela route with this "aligot" (from Latin "aliquid", something). Fresh tome de Laguiole (or d\'Aubrac) is essential: it is an unaged tome, different from Savoie tomme. Aligot is today the symbol of Aveyronnais culture, served at all village festivals.'}},
+
+
+{id:51,emoji:'🍚',region:'paris',lat:48.86,lng:2.34,
+ fr:{name:'Gâteau de Riz',sub:'Cuisine française classique',
+  ingr:[['Riz rond','150 g'],['Lait entier','75 cl'],['Sucre','100 g'],['Œufs','3'],['Jaunes d\'œufs','2'],['Vanille','1 gousse'],['Beurre','20 g'],['Caramel (sucre 80g + eau 2 c. à soupe)',''],['Sel','1 pincée']],
+  prep:'Cuire le riz 5 min à l\'eau bouillante, égoutter. Faire chauffer le lait avec la vanille. Ajouter le riz, cuire 25 min à feu doux en remuant. Hors du feu, incorporer sucre, beurre, œufs et jaunes battus. Préparer un caramel à sec, le couler dans un moule. Verser l\'appareil au riz. Cuire au bain-marie 40 min à 160°C. Laisser refroidir, démouler.',
+  anec:'Le gâteau de riz est un dessert emblématique de la cuisine bourgeoise française du XIXe siècle, présent dans tous les livres de cuisine de l\'époque. Il est la déclinaison sucrée du riz au lait, enrichi d\'œufs pour lui donner une tenue ferme. Chaque famille française possède sa propre recette, transmise de génération en génération. Sa simplicité et son économie en ont fait le dessert du dimanche par excellence dans les foyers modestes.'},
+ en:{name:'Rice Pudding Cake',sub:'Classic French cuisine',
+  ingr:[['Round rice','150 g'],['Whole milk','75 cl'],['Sugar','100 g'],['Eggs','3'],['Egg yolks','2'],['Vanilla','1 pod'],['Butter','20 g'],['Caramel (80g sugar + 2 tbsp water)',''],['Salt','1 pinch']],
+  prep:'Boil rice 5 min, drain. Heat milk with vanilla. Add rice, cook 25 min on low heat stirring. Off heat, fold in sugar, butter, beaten eggs and yolks. Make a dry caramel, pour into mould. Add rice mixture. Bake in water bath 40 min at 160°C. Cool, unmould.',
+  anec:'Rice pudding cake is an emblematic dessert of 19th century French bourgeois cuisine, found in all cookbooks of the era. It is the sweet version of rice pudding, enriched with eggs for a firm texture. Every French family has its own recipe passed down through generations. Its simplicity and economy made it the quintessential Sunday dessert in modest households.'}},
+{id:52,emoji:'🍫',region:'paris',lat:48.85,lng:2.33,
+ fr:{name:'Profiteroles',sub:'Paris, Cuisine française classique',
+  ingr:[['Pâte à choux (eau 25cl, beurre 80g, farine 150g, œufs 4)',''],['Glace à la vanille','500 g'],['Chocolat noir (70%)','200 g'],['Crème fleurette','15 cl'],['Beurre','20 g'],['Sucre glace',''],['Amandes effilées grillées (facultatif)','']],
+  prep:'Réaliser la pâte à choux. Pocher des petits choux (3 cm) sur plaque beurrée. Dorer au jaune d\'œuf. Cuire 25 min à 180°C sans ouvrir. Laisser refroidir. Faire fondre chocolat, crème et beurre au bain-marie pour la sauce chaude. Fendre les choux, les garnir de glace vanille. Dresser en pyramide, napper de sauce chocolat chaude au moment de servir.',
+  anec:'Les profiteroles apparaissent dans les livres de cuisine français dès le XVIe siècle sous le nom de "petits choux". La sauce au chocolat chaud coulant sur la glace crée un contraste chaud-froid fascinant. Ce dessert est indissociable des bistrots parisiens depuis les années 1950. Le secret réside dans le contraste de températures : la sauce chocolat doit être brûlante et la glace bien froide au moment du service.'},
+ en:{name:'Profiteroles',sub:'Paris, Classic French cuisine',
+  ingr:[['Choux pastry (water 25cl, butter 80g, flour 150g, eggs 4)',''],['Vanilla ice cream','500 g'],['Dark chocolate (70%)','200 g'],['Heavy cream','15 cl'],['Butter','20 g'],['Powdered sugar',''],['Toasted sliced almonds (optional)','']],
+  prep:'Make choux pastry. Pipe small puffs (3 cm) onto buttered tray. Glaze with egg yolk. Bake 25 min at 180°C without opening. Cool. Melt chocolate, cream and butter in a double boiler for the hot sauce. Slit puffs, fill with vanilla ice cream. Stack in a pyramid, pour hot chocolate sauce over just before serving.',
+  anec:'Profiteroles appear in French cookbooks as early as the 16th century under the name "petits choux." The hot chocolate sauce pouring over the ice cream creates a fascinating hot-cold contrast. This dessert has been inseparable from Parisian bistrots since the 1950s. The secret lies in the temperature contrast: the chocolate sauce must be scalding hot and the ice cream very cold at the moment of serving.'}},
+{id:53,emoji:'👑',region:'paris',lat:48.84,lng:2.32,
+ fr:{name:'Saint-Honoré',sub:'Paris, Île-de-France',
+  ingr:[['Pâte feuilletée','200 g'],['Pâte à choux (eau 15cl, beurre 50g, farine 90g, œufs 3)',''],['Crème Chiboust (crème pâtissière + meringue italienne)','(lait 30cl, jaunes 3, sucre 80g, farine 25g, vanille + blancs 2, sucre 60g)'],['Caramel (sucre 200g)',''],['Crème Chantilly','20 cl'],['Sucre glace','']],
+  prep:'Étaler la pâte feuilletée en cercle. Border d\'un cordon de pâte à choux à la poche. Piquer le centre, cuire 20 min à 180°C. Former des petits choux, cuire séparément. Préparer la crème Chiboust. Tremper les choux dans le caramel, les fixer sur le bord du gâteau. Garnir le centre de crème Chiboust, décorer de Chantilly à la douille Saint-Honoré.',
+  anec:'Le Saint-Honoré fut créé vers 1847 par Chiboust, pâtissier rue Saint-Honoré à Paris, d\'où son nom. C\'est l\'une des pâtisseries françaises les plus techniques, combinant pâte feuilletée, pâte à choux, caramel et crème Chiboust (crème pâtissière allégée à la meringue italienne). Saint Honoré est le patron des boulangers et pâtissiers. La rue Saint-Honoré était au XIXe siècle la plus grande concentration de pâtisseries de Paris.'},
+ en:{name:'Saint-Honoré',sub:'Paris, Île-de-France',
+  ingr:[['Puff pastry','200 g'],['Choux pastry (water 15cl, butter 50g, flour 90g, eggs 3)',''],['Chiboust cream (pastry cream + Italian meringue)','(milk 30cl, 3 yolks, 80g sugar, 25g flour, vanilla + 2 whites, 60g sugar)'],['Caramel (200g sugar)',''],['Whipped cream (Chantilly)','20 cl'],['Powdered sugar','']],
+  prep:'Roll puff pastry into a circle. Pipe a choux pastry border around the edge. Prick the centre, bake 20 min at 180°C. Pipe small choux puffs, bake separately. Make Chiboust cream. Dip puffs in caramel, fix around the pastry edge. Fill centre with Chiboust cream, decorate with Chantilly using a Saint-Honoré nozzle.',
+  anec:'The Saint-Honoré was created around 1847 by Chiboust, a pastry chef on rue Saint-Honoré in Paris, hence its name. It is one of the most technically demanding French pastries, combining puff pastry, choux, caramel and Chiboust cream (pastry cream lightened with Italian meringue). Saint Honoré is the patron saint of bakers and pastry chefs. Rue Saint-Honoré in the 19th century had the greatest concentration of pastry shops in Paris.'}},
+{id:54,emoji:'🥂',region:'paris',lat:48.87,lng:2.30,
+ fr:{name:'Soufflé au Grand Marnier',sub:'Paris, Cuisine française classique',
+  ingr:[['Grand Marnier','6 cl'],['Crème pâtissière (lait 25cl, jaunes 3, sucre 60g, farine 25g)',''],['Blancs d\'œufs','4'],['Sucre','40 g'],['Beurre + sucre (pour les moules)',''],['Zeste d\'orange','1'],['Sel','1 pincée']],
+  prep:'Préparer la crème pâtissière avec zeste d\'orange. Hors du feu, ajouter le Grand Marnier. Beurrer et sucrer généreusement les moules à soufflé. Monter les blancs en neige ferme avec une pincée de sel, ajouter le sucre en pluie. Incorporer 1/3 des blancs à la crème pour la détendre, puis le reste délicatement. Remplir les moules aux 3/4. Cuire 12 min à 200°C SANS OUVRIR. Servir immédiatement saupoudré de sucre glace.',
+  anec:'Le soufflé au Grand Marnier est la version festive et alcoolisée du soufflé classique. Le Grand Marnier, liqueur à base de cognac et d\'oranges amères créée en 1880 par Louis-Alexandre Marnier Lapostolle, est l\'alcool emblématique des soufflés sucrés français. Le restaurant La Tour d\'Argent à Paris en a fait son dessert signature. On sert parfois du Grand Marnier chaud supplémentaire à verser dans le soufflé à table, créant un effet spectaculaire.'},
+ en:{name:'Grand Marnier Soufflé',sub:'Paris, Classic French cuisine',
+  ingr:[['Grand Marnier','6 cl'],['Pastry cream (milk 25cl, 3 yolks, 60g sugar, 25g flour)',''],['Egg whites','4'],['Sugar','40 g'],['Butter + sugar (for moulds)',''],['Orange zest','1'],['Salt','1 pinch']],
+  prep:'Make pastry cream with orange zest. Off heat, stir in Grand Marnier. Generously butter and sugar soufflé moulds. Whip whites to stiff peaks with a pinch of salt, add sugar in a stream. Fold 1/3 of whites into cream to loosen, then gently fold in the rest. Fill moulds 3/4 full. Bake 12 min at 200°C WITHOUT OPENING. Serve immediately dusted with powdered sugar.',
+  anec:'The Grand Marnier soufflé is the festive, spirited version of the classic soufflé. Grand Marnier, a liqueur made from cognac and bitter oranges created in 1880 by Louis-Alexandre Marnier Lapostolle, is the emblematic spirit of French sweet soufflés. The restaurant La Tour d\'Argent in Paris made it their signature dessert. Extra warm Grand Marnier is sometimes served at the table to pour into the soufflé, creating a spectacular effect.'}},
+
+{id:55,emoji:'👑',region:'paris',lat:48.85,lng:2.35,
+ fr:{name:'Galette des Rois',sub:'Île-de-France, tradition nationale',
+  ingr:[['Pâte feuilletée','2 rouleaux'],['Poudre d\'amandes','150 g'],['Beurre mou','150 g'],['Sucre','150 g'],['Œufs','3'],['Extrait d\'amande amère','1 c. à café'],['Rhum brun','2 c. à soupe'],['Fève en porcelaine','1'],['Jaune d\'œuf (dorure)','1']],
+  prep:'Préparer la frangipane : crémer beurre et sucre, ajouter œufs un à un, incorporer poudre d\'amandes, rhum et extrait d\'amande. Étaler un disque de feuilletage sur plaque. Déposer la frangipane en laissant 2 cm de bord. Cacher la fève. Couvrir du second disque, souder les bords. Dorer au jaune d\'œuf, décorer de stries au couteau. Réfrigérer 30 min. Cuire 30 min à 180°C jusqu\'à dorure profonde.',
+  anec:'La galette des Rois est dégustée le 6 janvier pour l\'Épiphanie, fête des Rois Mages. La tradition de cacher une fève dans un gâteau remonte aux Saturnales romaines. Celui qui trouve la fève devient le roi ou la reine et porte la couronne en papier. La version à la frangipane est typique du nord de la Loire. Au sud, on mange plutôt la brioche provençale aux fruits confits. La France consomme 30 millions de galettes chaque janvier.'},
+ en:{name:'Galette des Rois',sub:'Île-de-France, national tradition',
+  ingr:[['Puff pastry','2 rolls'],['Ground almonds','150 g'],['Soft butter','150 g'],['Sugar','150 g'],['Eggs','3'],['Almond extract','1 tsp'],['Dark rum','2 tbsp'],['Porcelain charm (fève)','1'],['Egg yolk (glaze)','1']],
+  prep:'Make frangipane: cream butter and sugar, add eggs one by one, fold in ground almonds, rum and almond extract. Roll one pastry disc onto a tray. Spread frangipane leaving 2 cm border. Hide the charm. Cover with second disc, seal edges. Glaze with egg yolk, score a pattern with a knife. Refrigerate 30 min. Bake 30 min at 180°C until deep golden.',
+  anec:'The Galette des Rois is eaten on January 6th for Epiphany, the feast of the Three Kings. The tradition of hiding a charm in a cake dates back to Roman Saturnalia. Whoever finds the charm becomes king or queen and wears the paper crown. The frangipane version is typical north of the Loire. In the south, people eat a Provençal brioche with candied fruits instead. France consumes 30 million galettes every January.'}},
+{id:56,emoji:'🥧',region:'est',lat:47.25,lng:6.02,
+ fr:{name:'Galette Franc-Comtoise',sub:'Franche-Comté',
+  ingr:[['Farine','300 g'],['Beurre','150 g'],['Sucre','100 g'],['Œufs','2'],['Crème fraîche épaisse de Franche-Comté','20 cl'],['Sel','1 pincée'],['Levure chimique','1 sachet'],['Vanille','1 gousse'],['Jaune d\'œuf (dorure)','1']],
+  prep:'Sabler farine, beurre, sucre et sel du bout des doigts. Ajouter les œufs et la vanille, pétrir légèrement. Incorporer la crème fraîche pour obtenir une pâte souple. Former une boule, réfrigérer 1h. Étaler en disque épais (2 cm). Dorer au jaune d\'œuf, strier à la fourchette. Cuire 30 min à 170°C. La galette doit être dorée et légèrement moelleuse à cœur.',
+  anec:'La galette franc-comtoise est une pâtisserie régionale humble et généreuse, à base de la richissime crème fraîche de Franche-Comté. Elle se distingue de la galette des Rois par l\'absence de frangipane et sa texture à mi-chemin entre la tarte et le biscuit. Chaque boulangerie-pâtisserie de la région a sa recette secrète. Elle accompagne traditionnellement le vin jaune du Jura lors des repas de fête. La Comté, fromage emblématique de la région, et la crème fraîche sont les deux trésors laitiers franc-comtois.'},
+ en:{name:'Franche-Comté Galette',sub:'Franche-Comté',
+  ingr:[['Flour','300 g'],['Butter','150 g'],['Sugar','100 g'],['Eggs','2'],['Thick crème fraîche from Franche-Comté','20 cl'],['Salt','1 pinch'],['Baking powder','1 packet'],['Vanilla','1 pod'],['Egg yolk (glaze)','1']],
+  prep:'Rub flour, butter, sugar and salt with fingertips. Add eggs and vanilla, knead lightly. Fold in crème fraîche for a supple dough. Shape into a ball, refrigerate 1h. Roll into a thick disc (2 cm). Glaze with egg yolk, score with a fork. Bake 30 min at 170°C. The galette should be golden and slightly soft inside.',
+  anec:'The Franche-Comté galette is a humble, generous regional pastry made with the region\'s rich crème fraîche. It differs from the Galette des Rois by the absence of frangipane and its texture midway between a tart and a biscuit. Every bakery in the region has its secret recipe. It traditionally accompanies Jura vin jaune at festive meals. Comté cheese and crème fraîche are the two great dairy treasures of Franche-Comté.'}},
+{id:57,emoji:'🥘',region:'est',lat:47.25,lng:6.36,
+ fr:{name:'Petit Salé aux Lentilles',sub:'Franche-Comté, Auvergne',
+  ingr:[['Palette de porc demi-sel','600 g'],['Saucisses de Morteau','2'],['Lentilles vertes du Puy','400 g'],['Carottes','3'],['Oignons','2'],['Ail','4 gousses'],['Clous de girofle','3'],['Bouquet garni','1'],['Moutarde de Dijon','2 c. à soupe'],['Lardons fumés','100 g'],['Vinaigre de vin','1 c. à soupe']],
+  prep:'Dessaler la palette 2h dans l\'eau froide. Couvrir d\'eau froide avec oignons piqués de girofle, ail, bouquet garni. Porter à ébullition, écumer, cuire 45 min. Ajouter les lentilles rincées, les carottes, la saucisse de Morteau entière. Cuire 35 min à petit frémissement. Retirer les viandes, trancher. Assaisonner les lentilles de moutarde et vinaigre. Dresser viandes sur les lentilles.',
+  anec:'Le petit salé aux lentilles est le plat hivernal par excellence du centre-est de la France. La saucisse de Morteau, fumée au bois de résineux dans le Doubs, apporte un fumet incomparable. Les lentilles vertes du Puy, première AOP agricole française (1996), sont réputées pour leur finesse et leur tenue à la cuisson. Ce mariage porc-lentilles remonte au Moyen Âge : les lentilles, symboles de richesse en Europe médiévale, accompagnaient les viandes conservées dans le sel pendant l\'hiver.'},
+ en:{name:'Petit Salé with Lentils',sub:'Franche-Comté, Auvergne',
+  ingr:[['Semi-salted pork shoulder','600 g'],['Morteau sausages','2'],['Green lentils from Le Puy','400 g'],['Carrots','3'],['Onions','2'],['Garlic','4 cloves'],['Cloves','3'],['Bouquet garni','1'],['Dijon mustard','2 tbsp'],['Smoked lardons','100 g'],['Wine vinegar','1 tbsp']],
+  prep:'Desalt pork shoulder 2h in cold water. Cover with cold water, add onions studded with cloves, garlic, bouquet garni. Bring to boil, skim, cook 45 min. Add rinsed lentils, carrots, whole Morteau sausage. Simmer 35 min. Remove meats, slice. Season lentils with mustard and vinegar. Serve meats over lentils.',
+  anec:'Petit salé with lentils is the quintessential winter dish of central-eastern France. Morteau sausage, smoked over resinous wood in the Doubs department, provides an incomparable smokiness. Le Puy green lentils, France\'s first agricultural AOP (1996), are prized for their finesse and ability to hold their shape when cooked. This pork-lentil pairing dates from the Middle Ages: lentils, symbols of wealth in medieval Europe, accompanied salted meats preserved for winter.'}},
+{id:58,emoji:'🥩',region:'est',lat:47.39,lng:6.85,
+ fr:{name:'Filet Mignon de Porc',sub:'Franche-Comté, Alsace',
+  ingr:[['Filets mignons de porc','2 (env. 400g chacun)'],['Moutarde à l\'ancienne','3 c. à soupe'],['Crème fraîche épaisse','20 cl'],['Échalotes','4'],['Champignons de Paris','250 g'],['Vin blanc de Franche-Comté','15 cl'],['Beurre','40 g'],['Thym, laurier',''],['Sel, poivre',''],['Lardons fumés','100 g']],
+  prep:'Enrober les filets de moutarde à l\'ancienne, sel, poivre. Les colorer sur toutes les faces dans le beurre chaud 5 min. Réserver. Dans la même poêle, faire revenir lardons, échalotes et champignons. Déglacer au vin blanc. Ajouter crème et thym. Remettre les filets, couvrir, cuire 15 min à feu doux. La viande doit rester rosée à cœur. Laisser reposer 5 min, trancher en médaillons.',
+  anec:'Le filet mignon est le muscle psoas du porc, le plus tendre et le plus maigre. Sa finesse le distingue du filet de bœuf, avec lequel il partage le nom "mignon" (petit et délicat en vieux français). Ce morceau prisé illustre l\'excellence de la charcuterie franc-comtoise, région porcine par excellence. La moutarde à l\'ancienne avec ses graines entières apporte du caractère sans agressivité. En Franche-Comté, on l\'accompagne souvent de röstis ou de pommes sautées.'},
+ en:{name:'Pork Tenderloin',sub:'Franche-Comté, Alsace',
+  ingr:[['Pork tenderloins','2 (approx. 400g each)'],['Wholegrain mustard','3 tbsp'],['Thick crème fraîche','20 cl'],['Shallots','4'],['Button mushrooms','250 g'],['Franche-Comté white wine','15 cl'],['Butter','40 g'],['Thyme, bay leaf',''],['Salt, pepper',''],['Smoked lardons','100 g']],
+  prep:'Coat tenderloins with wholegrain mustard, salt, pepper. Brown on all sides in hot butter 5 min. Set aside. In same pan, sauté lardons, shallots and mushrooms. Deglaze with white wine. Add cream and thyme. Return tenderloins, cover, cook 15 min on low. Meat should remain pink inside. Rest 5 min, slice into medallions.',
+  anec:'The tenderloin is the pork psoas muscle, the most tender and lean cut. Its delicacy distinguishes it from beef fillet, with which it shares the name "mignon" (small and delicate in old French). This prized cut illustrates the excellence of Franche-Comté charcuterie, a premier pork-producing region. Wholegrain mustard with its whole seeds adds character without aggression. In Franche-Comté, it is often served with rösti or sautéed apples.'}},
+,
+
+{id:59,emoji:'🍺',region:'nord',lat:50.63,lng:3.06,
+ fr:{name:'Carbonade Flamande',sub:'Flandre, Nord-Pas-de-Calais',
+  ingr:[['Bœuf (paleron ou joue)','1.2 kg'],['Bière brune du Nord (Ch\'ti, Pelforth)','75 cl'],['Oignons','4'],['Lard fumé','150 g'],['Pain d\'épices','4 tranches'],['Moutarde forte','3 c. à soupe'],['Cassonade','2 c. à soupe'],['Bouquet garni','1'],['Beurre','50 g'],['Vinaigre de vin','1 c. à soupe'],['Sel, poivre','']],
+  prep:'Couper le bœuf en gros cubes. Les dorer dans le beurre. Réserver. Faire fondre les oignons émincés et le lard 15 min. Remettre la viande, ajouter cassonade et vinaigre. Verser la bière. Porter à ébullition. Tartiner le pain d\'épices de moutarde, déposer sur la viande, côté moutarde en bas. Couvrir, cuire 2h30 à 160°C. Le pain d\'épices va fondre et épaissir la sauce. Servir avec des frites.',
+  anec:'La carbonade (du flamand "karbonnade") est le plat emblématique de la Flandre française et belge. L\'utilisation de la bière comme liquide de braisage à la place du vin reflète la géographie : le Nord produit du houblon, pas des vignes. Le pain d\'épices tartiné de moutarde est le secret de l\'épaississement de la sauce, remplaçant le roux. Les estaminets (bistrots flamands) la servent avec des frites maison depuis des générations.'},
+ en:{name:'Flemish Carbonade',sub:'Flanders, Nord-Pas-de-Calais',
+  ingr:[['Beef (chuck or cheek)','1.2 kg'],['Dark northern beer','75 cl'],['Onions','4'],['Smoked bacon','150 g'],['Gingerbread','4 slices'],['Strong mustard','3 tbsp'],['Brown sugar','2 tbsp'],['Bouquet garni','1'],['Butter','50 g'],['Wine vinegar','1 tbsp'],['Salt, pepper','']],
+  prep:'Cut beef into large chunks. Brown in butter. Set aside. Soften sliced onions and bacon 15 min. Return meat, add brown sugar and vinegar. Pour in beer. Bring to boil. Spread gingerbread with mustard, place on meat mustard-side down. Cover, cook 2h30 at 160°C. The gingerbread dissolves and thickens the sauce. Serve with fries.',
+  anec:'Carbonade (from Flemish "karbonnade") is the emblematic dish of French and Belgian Flanders. Using beer as a braising liquid instead of wine reflects the geography: the North produces hops, not vines. Gingerbread spread with mustard is the secret to thickening the sauce, replacing a roux. Estaminets (Flemish bistros) have served it with homemade fries for generations.'}},
+{id:60,emoji:'🧀',region:'nord',lat:50.72,lng:2.53,
+ fr:{name:'Welsh',sub:'Boulogne-sur-Mer, Côte d\'Opale',
+  ingr:[['Cheddar ou Chester râpé','400 g'],['Bière blonde','20 cl'],['Moutarde forte','2 c. à soupe'],['Sauce Worcestershire','2 c. à café'],['Tabasco','quelques gouttes'],['Pain de mie épais','4 tranches'],['Jambon blanc','4 tranches'],['Œufs','4 (facultatif, œuf poché)'],['Beurre','20 g'],['Poivre noir','']],
+  prep:'Faire fondre le fromage râpé dans la bière chaude à feu doux en remuant. Ajouter moutarde, Worcestershire, Tabasco, poivre. Bien mélanger pour obtenir une sauce lisse et nappe. Toaster les tranches de pain. Disposer le jambon sur le pain. Napper généreusement de sauce au fromage. Gratiner 5 min sous le gril jusqu\'à bullage et dorure. Poser un œuf poché dessus si désiré.',
+  anec:'Le welsh est une adaptation du "Welsh Rarebit" britannique, arrivé sur la Côte d\'Opale avec les marins anglais au XIXe siècle. Boulogne-sur-Mer, principal port de pêche français, entretenait des liens étroits avec l\'Angleterre. Le welsh est devenu un plat emblématique du Nord, servi dans tous les estaminets. La version ch\'timi remplace parfois le cheddar par du Maroilles, fromage AOC du Nord, pour plus de caractère.'},
+ en:{name:'Welsh',sub:'Boulogne-sur-Mer, Opal Coast',
+  ingr:[['Grated Cheddar or Chester','400 g'],['Lager beer','20 cl'],['Strong mustard','2 tbsp'],['Worcestershire sauce','2 tsp'],['Tabasco','a few drops'],['Thick white bread','4 slices'],['Cooked ham','4 slices'],['Eggs','4 (optional, poached)'],['Butter','20 g'],['Black pepper','']],
+  prep:'Melt grated cheese in warm beer over low heat, stirring. Add mustard, Worcestershire, Tabasco, pepper. Stir to a smooth, coating sauce. Toast bread slices. Lay ham on toast. Generously coat with cheese sauce. Grill 5 min until bubbling and golden. Top with a poached egg if desired.',
+  anec:'Welsh is an adaptation of British "Welsh Rarebit," brought to the Opal Coast by English sailors in the 19th century. Boulogne-sur-Mer, France\'s main fishing port, had close ties with England. Welsh became an emblematic northern dish, served in all estaminets. The ch\'timi version sometimes replaces cheddar with Maroilles, the AOC cheese from the North, for more character.'}},
+{id:61,emoji:'🫙',region:'nord',lat:50.85,lng:2.23,
+ fr:{name:'Potjevleesch',sub:'Dunkerque, Flandre Maritime',
+  ingr:[['Poulet (morceaux)','400 g'],['Lapin (morceaux)','400 g'],['Veau (épaule)','300 g'],['Porc (palette)','300 g'],['Vin blanc sec','30 cl'],['Vinaigre de vin blanc','10 cl'],['Oignon','2'],['Ail','4 gousses'],['Thym, laurier, persil',''],['Grains de poivre, genièvre',''],['Gélatine (si nécessaire)','4 feuilles'],['Sel','']],
+  prep:'Désosser et couper les viandes en morceaux réguliers. Les faire mariner 12h dans vin blanc, vinaigre, oignons, ail et aromates. Égoutter. Dans une terrine, alterner couches de viandes. Couvrir avec la marinade filtrée. Cuire à couvert 2h à 150°C. Laisser refroidir, réfrigérer 24h minimum : la gelée doit se former naturellement. Servir froid en tranches avec frites et salade.',
+  anec:'Potjevleesch signifie "petit pot de viandes" en flamand. C\'est la terrine froide typique de la Flandre maritime, consommée depuis le Moyen Âge comme moyen de conservation des viandes. La gelée naturelle (collagène des os) qui enrobe les viandes est sa signature. À Dunkerque, il est servi pendant le célèbre Carnaval de Dunkerque, l\'un des plus grands de France (80 000 participants). Les bals du Carnaval se terminent traditionnellement par un potjevleesch.'},
+ en:{name:'Potjevleesch',sub:'Dunkirk, Maritime Flanders',
+  ingr:[['Chicken (pieces)','400 g'],['Rabbit (pieces)','400 g'],['Veal (shoulder)','300 g'],['Pork (shoulder)','300 g'],['Dry white wine','30 cl'],['White wine vinegar','10 cl'],['Onions','2'],['Garlic','4 cloves'],['Thyme, bay leaf, parsley',''],['Peppercorns, juniper berries',''],['Gelatine (if needed)','4 sheets'],['Salt','']],
+  prep:'Debone and cut meats into even pieces. Marinate 12h in white wine, vinegar, onions, garlic and aromatics. Drain. In a terrine, alternate layers of meats. Cover with strained marinade. Cook covered 2h at 150°C. Cool, refrigerate 24h minimum: the jelly must form naturally. Serve cold in slices with fries and salad.',
+  anec:'Potjevleesch means "small pot of meats" in Flemish. It is the typical cold terrine of Maritime Flanders, consumed since the Middle Ages as a meat preservation method. The natural jelly (bone collagen) encasing the meats is its signature. In Dunkirk, it is served during the famous Dunkirk Carnival, one of France\'s largest (80,000 participants). The Carnival balls traditionally end with a potjevleesch.'}},
+{id:62,emoji:'🥧',region:'nord',lat:50.41,lng:2.83,
+ fr:{name:'Flamiche aux Poireaux',sub:'Douai, Picardie',
+  ingr:[['Poireaux','1 kg'],['Beurre','80 g'],['Crème fraîche épaisse','25 cl'],['Œufs','3'],['Pâte brisée','1 fond'],['Gruyère râpé','80 g'],['Noix de muscade',''],['Sel, poivre',''],['Lardons fumés (facultatif)','100 g']],
+  prep:'Nettoyer et émincer finement les poireaux. Les faire fondre à couvert dans le beurre 20 min à feu doux jusqu\'à compoter. Laisser refroidir. Battre œufs et crème. Mélanger avec les poireaux, gruyère, muscade, sel, poivre. Foncer le moule de pâte brisée, piquer. Verser l\'appareil. Cuire 35 min à 180°C jusqu\'à prise et légère coloration.',
+  anec:'La flamiche (du picard "flamique", galette) est l\'emblème de la cuisine picarde et du Nord. La version aux poireaux de Douai est la plus connue. C\'est une sorte de quiche sans les lardons ni le jambon, où le poireau, légume roi du Nord, est seul vedette. La flamiche est mentionnée dans des textes du XIVe siècle sous le nom de "flammiche". Elle se décline aussi au Maroilles (fromage fort) dans le Hainaut.'},
+ en:{name:'Leek Flamiche',sub:'Douai, Picardy',
+  ingr:[['Leeks','1 kg'],['Butter','80 g'],['Thick crème fraîche','25 cl'],['Eggs','3'],['Shortcrust pastry','1 shell'],['Grated Gruyère','80 g'],['Nutmeg',''],['Salt, pepper',''],['Smoked lardons (optional)','100 g']],
+  prep:'Clean and finely slice leeks. Sweat covered in butter 20 min on low heat until very soft. Cool. Beat eggs and cream. Mix with leeks, Gruyère, nutmeg, salt, pepper. Line pan with pastry, prick base. Pour in filling. Bake 35 min at 180°C until set and lightly golden.',
+  anec:'Flamiche (from Picard "flamique", flatbread) is the emblem of Picard and northern cuisine. The leek version from Douai is best known. It is a quiche-like tart where leek, the king vegetable of the North, is the sole star. Flamiche is mentioned in 14th century texts as "flammiche". It also comes in a Maroilles cheese version in Hainaut.'}},
+{id:63,emoji:'🥞',region:'nord',lat:49.89,lng:2.30,
+ fr:{name:'Ficelle Picarde',sub:'Amiens, Picardie',
+  ingr:[['Crêpes de froment','8 grandes'],['Jambon blanc','8 tranches'],['Champignons de Paris','300 g'],['Crème fraîche épaisse','30 cl'],['Échalotes','3'],['Beurre','40 g'],['Gruyère râpé','100 g'],['Sel, poivre, muscade',''],['Persil haché','']],
+  prep:'Émincer et faire suer champignons et échalotes dans le beurre. Assaisonner. Ajouter 10 cl de crème. Sur chaque crêpe, déposer une tranche de jambon, 2 c. à soupe de duxelles. Rouler en cigare. Disposer dans un plat beurré. Napper du reste de crème, parsemer de gruyère. Gratiner 20 min à 200°C jusqu\'à coloration dorée.',
+  anec:'La ficelle picarde est une crêpe garnie et gratinée, spécialité d\'Amiens créée dans les années 1950 par le chef Marcel Lefèvre. Son nom évoque la finesse d\'une ficelle de pain. Elle est inscrite au patrimoine gastronomique picard. La Picardie est une grande région de production de blé et de betterave sucrière, ce qui explique la tradition des crêpes de froment. La ficelle picarde est aujourd\'hui servie dans tous les restaurants régionaux comme entrée chaude.'},
+ en:{name:'Ficelle Picarde',sub:'Amiens, Picardy',
+  ingr:[['Wheat crêpes','8 large'],['Cooked ham','8 slices'],['Button mushrooms','300 g'],['Thick crème fraîche','30 cl'],['Shallots','3'],['Butter','40 g'],['Grated Gruyère','100 g'],['Salt, pepper, nutmeg',''],['Chopped parsley','']],
+  prep:'Slice and sweat mushrooms and shallots in butter. Season. Add 10 cl cream. On each crêpe, place a slice of ham and 2 tbsp mushroom filling. Roll into a cylinder. Arrange in a buttered dish. Pour remaining cream over, sprinkle with Gruyère. Gratin 20 min at 200°C until golden.',
+  anec:'Ficelle picarde is a filled and gratinéed crêpe, a speciality of Amiens created in the 1950s by chef Marcel Lefèvre. Its name evokes the thinness of a bread ficelle. It is registered as part of Picard gastronomic heritage. Picardy is a major wheat and sugar beet region, explaining the tradition of wheat crêpes. Ficelle picarde is now served in all regional restaurants as a warm starter.'}},
+{id:64,emoji:'🐔',region:'nord',lat:51.03,lng:2.37,
+ fr:{name:'Waterzoï de Poulet',sub:'Flandre, Dunkerque',
+  ingr:[['Poulet fermier découpé','1.5 kg'],['Carottes','3'],['Poireaux','3'],['Céleri','3 branches'],['Pommes de terre','400 g'],['Oignon','1'],['Crème fraîche','20 cl'],['Jaunes d\'œufs','3'],['Bouillon de volaille','1 l'],['Beurre','40 g'],['Persil plat','1 bouquet'],['Sel, poivre blanc','']],
+  prep:'Faire revenir les morceaux de poulet dans le beurre. Ajouter oignon et légumes en julienne (carottes, poireaux, céleri). Couvrir de bouillon, ajouter pommes de terre en dés. Cuire 35 min à frémissement. Retirer le poulet. Lier le bouillon avec jaunes d\'œufs et crème hors du feu (ne pas faire bouillir). Remettre le poulet, parsemer de persil. Servir en cocotte.',
+  anec:'Le waterzoï (du flamand "waterzooï", eau qui bout) est originaire de Gand en Belgique, mais la Flandre française le revendique comme sien. La version au poisson (cabillaud, saumon) est la plus ancienne. La version au poulet s\'est popularisée au XXe siècle quand le poisson se raréfia dans les rivières. C\'est un pot-au-feu flamand, délicat et crémeux, à mi-chemin entre la soupe et le ragoût. Julia Child l\'a découvert lors de ses séjours en Europe.'},
+ en:{name:'Chicken Waterzoï',sub:'Flanders, Dunkirk',
+  ingr:[['Free-range chicken, cut up','1.5 kg'],['Carrots','3'],['Leeks','3'],['Celery','3 stalks'],['Potatoes','400 g'],['Onion','1'],['Crème fraîche','20 cl'],['Egg yolks','3'],['Chicken stock','1 l'],['Butter','40 g'],['Flat parsley','1 bunch'],['Salt, white pepper','']],
+  prep:'Brown chicken pieces in butter. Add onion and julienned vegetables (carrots, leeks, celery). Cover with stock, add diced potatoes. Simmer 35 min. Remove chicken. Thicken broth off heat with egg yolks and cream (do not boil). Return chicken, scatter parsley. Serve in a casserole.',
+  anec:'Waterzoï (from Flemish "waterzooï", boiling water) originates from Ghent in Belgium, but French Flanders claims it as its own. The fish version (cod, salmon) is the oldest. The chicken version became popular in the 20th century when fish became scarce in rivers. It is a Flemish pot-au-feu, delicate and creamy, halfway between a soup and a stew. Julia Child discovered it during her stays in Europe.'}},
+{id:65,emoji:'🧀',region:'nord',lat:50.27,lng:3.97,
+ fr:{name:'Tarte au Maroilles',sub:'Avesnois, Nord',
+  ingr:[['Maroilles (1/4 soit env. 200g)','1 quart'],['Pâte à pain ou briochée','300 g'],['Crème fraîche épaisse','20 cl'],['Œufs','2'],['Lardons fumés','100 g'],['Poivre noir concassé',''],['Noix de muscade',''],['Beurre',''],['Ciboulette (facultatif)','']],
+  prep:'Étaler la pâte dans le moule beurré, laisser lever 30 min. Faire revenir les lardons. Battre œufs et crème, poivrer, ajouter muscade. Gratter la croûte orangée du Maroilles, le couper en lamelles. Répartir lardons sur la pâte, verser l\'appareil crème-œufs, disposer les lamelles de Maroilles. Cuire 30 min à 200°C. Servir chaud, tiède ou froid.',
+  anec:'Le Maroilles est un fromage à pâte molle et croûte lavée fabriqué depuis le Xe siècle dans l\'abbaye de Maroilles (Nord). Son odeur puissante contraste avec sa saveur en bouche, plus douce. AOC depuis 1976. La tarte au Maroilles ("tarte au Maroille" sans s en local) est le plat festif par excellence du Hainaut et de l\'Avesnois. Charles de Gaulle, natif de Lille, en était paraît-il friand. Elle se décline en version sucrée-salée avec un fond de cassonade.'},
+ en:{name:'Maroilles Tart',sub:'Avesnois, Nord',
+  ingr:[['Maroilles cheese (1/4, approx. 200g)','1 quarter'],['Bread or brioche dough','300 g'],['Thick crème fraîche','20 cl'],['Eggs','2'],['Smoked lardons','100 g'],['Cracked black pepper',''],['Nutmeg',''],['Butter',''],['Chives (optional)','']],
+  prep:'Roll dough into buttered pan, prove 30 min. Sauté lardons. Beat eggs and cream, season with pepper and nutmeg. Scrape the orange rind off Maroilles, slice thinly. Spread lardons on dough, pour cream mixture, arrange Maroilles slices. Bake 30 min at 200°C. Serve hot, warm or cold.',
+  anec:'Maroilles is a soft, washed-rind cheese made since the 10th century at Maroilles Abbey in northern France. Its powerful aroma contrasts with its milder flavour on the palate. AOC since 1976. The Maroilles tart is the festive dish par excellence of Hainaut and Avesnois. Charles de Gaulle, a native of Lille, was reportedly fond of it. It also comes in a sweet-savoury version with a brown sugar base.'}}
+,
+
+{id:66,emoji:'🥬',region:'nord',lat:50.63,lng:3.06,
+ fr:{name:'Endives au Jambon',sub:'Nord, Flandre',
+  ingr:[['Endives (chicons)','8'],['Jambon blanc','8 tranches'],['Beurre','40 g'],['Lait','50 cl'],['Farine','40 g'],['Gruyère râpé','120 g'],['Noix de muscade',''],['Sucre','1 pincée'],['Jus de citron','1 c. à soupe'],['Sel, poivre blanc','']],
+  prep:'Cuire les endives à l\'eau bouillante salée avec sucre et citron 20 min. Égoutter, presser pour enlever l\'amertume et l\'eau. Enrouler chaque endive dans une tranche de jambon. Disposer dans un plat beurré. Préparer une béchamel : faire fondre le beurre, ajouter farine, verser le lait chaud progressivement, assaisonner de muscade. Incorporer la moitié du gruyère. Napper les endives de béchamel, parsemer du reste de gruyère. Gratiner 25 min à 200°C.',
+  anec:'L\'endive (ou chicon en ch\'ti et en belge) est la reine des légumes du Nord. Elle fut découverte par hasard en 1830 par le jardinier belge Franz Bresiers, qui oublia des racines de chicorée dans une cave : elles produisirent des pousses blanches et tendres. Le Nord de la France produit 70% des endives françaises. Les endives au jambon gratiné à la béchamel sont le plat du dimanche par excellence dans les familles nordistes, souvent appelé "chicons au jambon" dans les estaminets.'},
+ en:{name:'Chicory Ham Gratin',sub:'Nord, Flanders',
+  ingr:[['Belgian endives (chicons)','8'],['Cooked ham','8 slices'],['Butter','40 g'],['Milk','50 cl'],['Flour','40 g'],['Grated Gruyère','120 g'],['Nutmeg',''],['Sugar','1 pinch'],['Lemon juice','1 tbsp'],['Salt, white pepper','']],
+  prep:'Boil endives in salted water with sugar and lemon 20 min. Drain, squeeze out bitterness and water. Wrap each endive in a slice of ham. Place in a buttered dish. Make béchamel: melt butter, add flour, gradually pour in hot milk, season with nutmeg. Stir in half the Gruyère. Coat endives with béchamel, sprinkle remaining Gruyère. Grill 25 min at 200°C.',
+  anec:'Endive (or chicon in ch\'timi and Belgian dialects) is the queen of northern vegetables. It was discovered by chance in 1830 by Belgian gardener Franz Bresiers, who forgot chicory roots in a cellar: they sprouted white, tender shoots. Northern France produces 70% of French endives. Ham and endive gratin is the quintessential Sunday dish in northern families, often called "chicons au jambon" in estaminets.'}}
+
+];
+// APPS CATALOGUE
+const APPS = [
+  {cat:'Monuments & Voyages',apps:[
+    {id:'6763507194',name:'Hotels RoofTop'},
+    {id:'6762618424',name:'Ponts du Monde'},
+    {id:'6762594201',name:'Détroits'},
+    {id:'6762598304',name:'Mers & Océans'},
+    {id:'6763857843',name:'Gratte-Ciels'},
+    {id:'6764087562',name:'Aéroports'},
+    {id:'6762632868',name:'Trains Mythiques'},
+    {id:'6763069304',name:'Avions de Légende'},
+    {id:'6763071567',name:'Voitures de Légende'},
+    {id:'6763076110',name:'Paquebots'},
+    {id:'6762823383',name:'Châteaux Loire'},
+    {id:'6767810270',name:'Îles du Monde'},
+  ]},
+  {cat:'Histoire de France',apps:[
+    {id:'6761322546',name:'Rois de France'},
+    {id:'6761324444',name:'Présidents FR'},
+    {id:'6761374601',name:'Maréchaux Napoléon'},
+    {id:'6761334922',name:'Académie FR'},
+    {id:'6761335268',name:'Panthéon Paris'},
+    {id:'6761709149',name:'Basilique St-Denis'},
+    {id:'6768320574',name:'Légion d\'Honneur'},
+    {id:'6762542395',name:'Conquêtes Sociales'},
+    {id:'6762208827',name:'Dynasties Royales'},
+    {id:'6763569148',name:'Nobels de la Paix'},
+  ]},
+  {cat:'Histoire du Monde',apps:[
+    {id:'6762522136',name:'Dynasties Chinoises'},
+    {id:'6762452564',name:'Dynasties Russes'},
+    {id:'6762098486',name:'Familles Royales'},
+    {id:'6762256169',name:'Présidents US'},
+    {id:'6762263227',name:'Leaders Européens'},
+    {id:'6768003416',name:'Explorateurs'},
+    {id:'6767492967',name:'Institutions'},
+    {id:'6767273597',name:'Machines Légend.'},
+    {id:'6766260978',name:'Histoire Info.'},
+    {id:'6766261703',name:'Micro-Info'},
+  ]},
+  {cat:'Culture & Art',apps:[
+    {id:'6768068634',name:'Peintres Célèbres'},
+    {id:'6770302783',name:'Architectes'},
+    {id:'6770102339',name:'Athlètes Célèbres'},
+    {id:'6767135193',name:'Auteurs BD'},
+    {id:'6769653710',name:'Légendes Pop'},
+    {id:'6762006105',name:'Iconic Covers'},
+    {id:'6761656628',name:'Compositeurs'},
+    {id:'6773255479',name:'Rosiers du Monde'},
+    {id:'6761685637',name:'Arbres de France'},
+  ]},
+  {cat:'Paris',apps:[
+    {id:'6761993002',name:'Comédie FR'},
+    {id:'6761769529',name:'Institut de France'},
+    {id:'6761293938',name:'Scènes Paris'},
+    {id:'6760929391',name:'Théâtres Paris'},
+    {id:'6760890465',name:'Musées Paris'},
+    {id:'6760751055',name:'Cimetières Paris'},
+    {id:'6761363063',name:'Sénat Paris'},
+    {id:'6761361079',name:'Assemblée Paris'},
+  ]},
+  {cat:'Géographie Quiz',apps:[
+    {id:'6770453028',name:'France Geo Quiz'},
+    {id:'6770458593',name:'Europe Geo Quiz'},
+    {id:'6770566450',name:'Amér. Nord Quiz'},
+    {id:'6770580053',name:'Amér. Sud Quiz'},
+    {id:'6770836826',name:'Afrique Quiz'},
+    {id:'6770857576',name:'Asie Quiz'},
+    {id:'6770848617',name:'Moyen-Orient Quiz'},
+    {id:'6770826067',name:'Europe Hors UE'},
+    {id:'6762346365',name:'Pays UE'},
+    {id:'6762370541',name:'États Unis'},
+    {id:'6762263227',name:'Leaders Européens'},
+    {id:'6761421276',name:'Capitales Europe'},
+  ]},
+  {cat:'Jeux',apps:[
+    {id:'6762077646',name:'Flip Board'},
+    {id:'6762091681',name:'Bataille Navale'},
+    {id:'6762076518',name:'Dames Checkers'},
+    {id:'6762552826',name:'Lexigo'},
+    {id:'6762558969',name:'ColorCodeMind'},
+    {id:'6769310796',name:'App Solitaire'},
+    {id:'6768574161',name:'Tuiles Num.'},
+  ]},
+  {cat:'Kids',apps:[
+    {id:'6773000126',name:'Coloriage Kids'},
+    {id:'6773621753',name:'Mémo Animaux'},
+    {id:'6773656650',name:'Petit Bilingue'},
+    {id:'6773037110',name:'Dinosaures Kids'},
+    {id:'6772937635',name:'Animaux Kids'},
+    {id:'6772548541',name:'Lettres Kids'},
+    {id:'6772546976',name:'Chiffres Kids'},
+    {id:'6772468506',name:'Mahjong Kids'},
+  ]},
+  {cat:'Utilitaires',apps:[
+    {id:'6760617965',name:'MesRestaurants'},
+    {id:'6761271324',name:'MediSafe'},
+    {id:'6760126279',name:'Cave Manager'},
+    {id:'6759219383',name:'Frigo Manager'},
+    {id:'1483084001',name:'Belote Calc'},
+    {id:'1481989301',name:'Tarots Calc'},
+  ]},
+];
+
+// STATE
+let curLang='fr', curTab='list', favorites=[], curRecipe=null, curPortions=4;
+let quizQ=[], quizIdx=0, quizScore=0, quizAnswered=false;
+let curFilter='all', map=null, markersLayer=null;
+
+function t(key){return LANG[curLang][key]||key}
+
+function toggleLang(){
+  curLang=curLang==='fr'?'en':'fr';
+  document.querySelector('.lang-btn').textContent=curLang==='fr'?'🇬🇧':'🇫🇷';
+  applyLang();
+  if(curRecipe)renderDetail(curRecipe);
+  if(curTab==='quiz')renderQuiz();
+}
+
+function applyLang(){
+  document.getElementById('h-title').textContent=t('h-title');
+  document.getElementById('h-sub').textContent=t('h-sub');
+  document.getElementById('search-input').placeholder=t('search-ph');
+  document.getElementById('tab-map').textContent=t('tab-map');
+  document.getElementById('tab-list').textContent=t('tab-list');
+  document.getElementById('tab-favs').textContent=t('tab-favs');
+  document.getElementById('tab-quiz').textContent=t('tab-quiz');
+  document.getElementById('tab-settings').textContent=t('tab-settings');
+  if(document.getElementById('s-apps'))document.getElementById('s-apps').textContent=t('s-apps');
+  renderFilters();
+  renderList();
+  renderFavs();
+}
+
+function showTab(name){
+  curTab=name;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  ['map','list','favs','quiz','settings'].forEach(n=>{
+    document.getElementById('tab-'+n+'-content').style.display=n===name?'':'none';
+  });
+  const main=document.getElementById('main-area');
+  if(name==='map'){
+    main.style.overflow='hidden';
+    document.getElementById('tab-map-content').style.height='100%';
+    setTimeout(()=>{ if(map)map.invalidateSize(); },100);
+  } else {
+    main.style.overflow='';
+    if(name==='quiz')renderQuiz();
+    if(name==='favs')renderFavs();
+    if(name==='settings')renderSettings();
+  }
+}
+
+function renderFilters(){
+  const bar=document.getElementById('filter-bar');
+  const fl=t('filter-labels');
+  const regions=['all','paris','nord','ouest','est','sud-ouest','sud-est','centre'];
+  bar.innerHTML='';
+  regions.forEach(r=>{
+    const b=document.createElement('button');
+    b.className='filter-btn'+(r===curFilter?' active':'');
+    b.textContent=r==='all'?t('all'):(fl[r]||r);
+    b.onclick=()=>{curFilter=r;renderFilters();renderList();};
+    bar.appendChild(b);
+  });
+}
+
+function getRecipeData(r){return r[curLang]||r.fr}
+
+function renderList(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  const list=document.getElementById('recipe-list');
+  const cb=document.getElementById('clear-btn');
+  cb.style.display=q?'flex':'none';
+  let items=RECIPES;
+  if(curFilter!=='all')items=items.filter(r=>r.region===curFilter);
+  if(q)items=items.filter(r=>{
+    const d=getRecipeData(r);
+    return d.name.toLowerCase().includes(q)||d.sub.toLowerCase().includes(q);
+  });
+  list.innerHTML='';
+  items.forEach(r=>{
+    const d=getRecipeData(r);
+    const isFav=favorites.includes(r.id);
+    const card=document.createElement('div');
+    card.className='recipe-card';
+    const thumbUrl=PHOTOS[r.id];
+    const thumbHtml=thumbUrl
+      ?`<img class="recipe-thumb" src="${thumbUrl}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      :`<div class="recipe-thumb-placeholder">${r.emoji}</div>`;
+    card.innerHTML=`${thumbHtml}
+      <div class="recipe-info">
+        <div class="recipe-name">${d.name}</div>
+        <div class="recipe-meta">${d.sub}</div>
+        <div class="recipe-region-tag">${t('filter-labels')[r.region]||r.region}</div>
+      </div>
+      <div class="fav-heart" data-id="${r.id}">${isFav?'❤️':'🤍'}</div>`;
+    card.querySelector('.fav-heart').addEventListener('click',e=>{e.stopPropagation();toggleFav(r.id);});
+    card.addEventListener('click',()=>openDetail(r));
+    list.appendChild(card);
+  });
+  if(!items.length){list.innerHTML='<div class="empty-state"><span class="big">🔍</span>Aucune recette trouvée</div>';}
+}
+
+function filterList(){renderList();}
+function clearSearch(){document.getElementById('search-input').value='';renderList();}
+
+function toggleFav(id){
+  const i=favorites.indexOf(id);
+  if(i>-1)favorites.splice(i,1);else favorites.push(id);
+  localStorage.setItem('recettes_favs',JSON.stringify(favorites));
+  renderList();
+  if(curTab==='favs')renderFavs();
+  if(curRecipe&&curRecipe.id===id){
+    document.getElementById('d-fav').textContent=favorites.includes(id)?'❤️':'🤍';
+  }
+}
+
+function renderFavs(){
+  const list=document.getElementById('favs-list');
+  const favItems=RECIPES.filter(r=>favorites.includes(r.id));
+  list.innerHTML='';
+  if(!favItems.length){
+    list.innerHTML=`<div class="empty-state"><span class="big">💔</span>${t('fav-empty')}<br><small>${t('fav-empty2')}</small></div>`;
+    return;
+  }
+  favItems.forEach(r=>{
+    const d=getRecipeData(r);
+    const card=document.createElement('div');
+    card.className='recipe-card';
+    const thumbUrl2=PHOTOS[r.id];
+    const thumbHtml2=thumbUrl2
+      ?`<img class="recipe-thumb" src="${thumbUrl2}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      :`<div class="recipe-thumb-placeholder">${r.emoji}</div>`;
+    card.innerHTML=`${thumbHtml2}
+      <div class="recipe-info">
+        <div class="recipe-name">${d.name}</div>
+        <div class="recipe-meta">${d.sub}</div>
+      </div>
+      <div class="fav-heart" data-id="${r.id}">❤️</div>`;
+    card.querySelector('.fav-heart').addEventListener('click',e=>{e.stopPropagation();toggleFav(r.id);renderFavs();});
+    card.addEventListener('click',()=>openDetail(r));
+    list.appendChild(card);
+  });
+}
+
+function openDetail(r){
+  curRecipe=r;curPortions=4;
+  renderDetail(r);
+  document.getElementById('detail-panel').style.display='block';
+}
+
+function renderDetail(r){
+  const d=getRecipeData(r);
+  document.getElementById('d-name').textContent=d.name;
+  document.getElementById('d-sub').textContent=d.sub;
+  const photoWrap=document.getElementById('d-photo-wrap');
+  const bigUrl=PHOTOS[r.id];
+  if(bigUrl){
+    photoWrap.innerHTML=`<img class="detail-photo" src="${bigUrl}" alt="" onerror="this.parentNode.innerHTML='<div class=detail-photo-placeholder>${r.emoji}</div>'">`;
+    document.getElementById('d-emoji').style.display='none';
+  } else {
+    photoWrap.innerHTML='';
+    document.getElementById('d-emoji').style.display='block';
+    document.getElementById('d-emoji').textContent=r.emoji;
+  }
+  document.getElementById('d-fav').textContent=favorites.includes(r.id)?'❤️':'🤍';
+  document.getElementById('d-ingr-title').textContent=t('ingr');
+  document.getElementById('d-prep-title').textContent=t('prep');
+  document.getElementById('d-anec-title').textContent=t('anec');
+  document.getElementById('d-prep').textContent=d.prep;
+  document.getElementById('d-anec').textContent=d.anec;
+  updatePortions();
+}
+
+function updatePortions(){
+  if(!curRecipe)return;
+  const d=getRecipeData(curRecipe);
+  const base=4;
+  document.getElementById('portions-val').textContent=curPortions+' '+(curPortions>1?t('persons'):t('person'));
+  const ul=document.getElementById('d-ingr-list');
+  ul.innerHTML='';
+  d.ingr.forEach(([name,qty])=>{
+    const li=document.createElement('li');
+    let scaledQty=qty;
+    if(qty){
+      const num=parseFloat(qty.replace(',','.'));
+      if(!isNaN(num)){
+        const scaled=(num*curPortions/base);
+        const rounded=Math.round(scaled*10)/10;
+        scaledQty=qty.replace(num.toString().replace('.',','),rounded.toString().replace('.',','));
+        scaledQty=qty.replace(num,rounded%1===0?rounded:rounded);
+      }
+    }
+    li.innerHTML=`<span>${name}</span><span>${scaledQty}</span>`;
+    ul.appendChild(li);
+  });
+}
+
+function adjPortions(d){
+  curPortions=Math.max(1,Math.min(20,curPortions+d));
+  updatePortions();
+}
+
+function toggleFavDetail(){
+  if(curRecipe)toggleFav(curRecipe.id);
+}
+
+function closeDetail(){
+  document.getElementById('detail-panel').style.display='none';
+  curRecipe=null;
+}
+
+// QUIZ
+function renderQuiz(){
+  const wrap=document.getElementById('quiz-wrap');
+  if(!quizQ.length){
+    quizQ=[...RECIPES].sort(()=>Math.random()-.5).slice(0,10);
+    quizIdx=0;quizScore=0;
+  }
+  if(quizIdx>=quizQ.length){
+    wrap.innerHTML=`<div class="quiz-result">
+      <div class="quiz-score">${t('quiz-result')}</div>
+      <div class="quiz-score-big" style="font-family:'IM Fell English',serif;font-size:48px;color:var(--gold)">${quizScore}/10</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--muted2);margin:12px 0">${quizScore>=8?t('quiz-excellent'):quizScore>=5?t('quiz-bien'):t('quiz-revoir')}</div>
+      <button class="quiz-restart" onclick="quizQ=[];renderQuiz()">${t('quiz-again')}</button>
+    </div>`;
+    return;
+  }
+  const r=quizQ[quizIdx];
+  const d=getRecipeData(r);
+  // generate 4 options including correct answer
+  const correctRegion=r.region;
+  const allRegions=['paris','nord','ouest','est','sud-ouest','sud-est','centre'];
+  const fl=t('filter-labels');
+  const others=allRegions.filter(x=>x!==correctRegion).sort(()=>Math.random()-.5).slice(0,3);
+  const opts=[correctRegion,...others].sort(()=>Math.random()-.5);
+  quizAnswered=false;
+  wrap.innerHTML=`<div class="quiz-score">${t('quiz-score')}: ${quizScore}/${quizIdx}</div>
+    <div class="quiz-card">
+      <div class="quiz-emoji">${r.emoji}</div>
+      <div class="quiz-question">${d.name}</div>
+      <div class="quiz-hint" style="font-style:italic;color:var(--muted)">${t('quiz-q')}</div>
+      <div class="quiz-opts">
+        ${opts.map(o=>`<button class="quiz-opt" onclick="answerQuiz(this,'${o}','${correctRegion}')">${fl[o]||o}</button>`).join('')}
+      </div>
+      <button class="quiz-next" id="quiz-next-btn" onclick="quizIdx++;renderQuiz()">${t('quiz-next')}</button>
+    </div>`;
+}
+
+function answerQuiz(btn,chosen,correct){
+  if(quizAnswered)return;
+  quizAnswered=true;
+  document.querySelectorAll('.quiz-opt').forEach(b=>{
+    const val=b.getAttribute('onclick').split("'")[1];
+    if(val===correct)b.classList.add('correct');
+    else b.classList.add('wrong');
+    b.disabled=true;
+  });
+  if(chosen===correct)quizScore++;
+  document.getElementById('quiz-next-btn').style.display='block';
+}
+
+// MAP
+function initMap(){
+  if(map)return;
+  map=L.map('map',{zoomControl:true}).setView([46.8,2.3],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors',maxZoom:18
+  }).addTo(map);
+  markersLayer=L.layerGroup().addTo(map);
+  RECIPES.forEach(r=>{
+    const icon=L.divIcon({html:`<div style="font-size:24px;line-height:1">${r.emoji}</div>`,iconSize:[30,30],className:''});
+    const m=L.marker([r.lat,r.lng],{icon}).addTo(markersLayer);
+    const d=getRecipeData(r);
+    m.on('click',()=>{
+      document.getElementById('map-info').textContent=d.name+' — '+d.sub;
+      setTimeout(()=>openDetail(r),200);
+    });
+  });
+}
+
+// SETTINGS
+
+
+function renderSettings(){
+  const container=document.getElementById('apps-grid');
+  if(container.children.length)return;
+  APPS.forEach(cat=>{
+    // Titre de catégorie
+    const h=document.createElement('div');
+    h.style.cssText='grid-column:1/-1;font-family:"IM Fell English",serif;font-size:calc(13px * var(--fs));color:var(--gold2);margin:14px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px';
+    h.textContent=cat.cat;
+    container.appendChild(h);
+    cat.apps.forEach(app=>{
+      const numId=app.id;
+      const item=document.createElement('div');
+      item.className='app-item';
+      item.style.cursor='pointer';
+      item.onclick=()=>{
+        if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser){
+          window.Capacitor.Plugins.Browser.open({url:'https://apps.apple.com/app/id'+numId});
+        } else {
+          window.open('https://apps.apple.com/app/id'+numId,'_blank');
+        }
+      };
+      const img=document.createElement('img');
+      img.width=56;img.height=56;
+      img.style.cssText='border-radius:13px;background:var(--border)';
+      const cbName='itcb'+numId;
+      window[cbName]=function(data){if(data.results&&data.results[0])img.src=data.results[0].artworkUrl60;};
+      const s=document.createElement('script');
+      s.src='https://itunes.apple.com/lookup?id='+numId+'&callback='+cbName;
+      document.body.appendChild(s);
+      const span=document.createElement('span');
+      span.textContent=app.name;
+      item.appendChild(img);item.appendChild(span);
+      container.appendChild(item);
+    });
+  });
+}
+
+// INIT
+window.addEventListener('DOMContentLoaded',()=>{
+  try{favorites=JSON.parse(localStorage.getItem('recettes_favs'))||[];}catch(e){favorites=[];}
+
+  applyLang();
+  renderFilters();
+  renderList();
+  // Init map
+  setTimeout(()=>{
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    script.onload=initMap;
+    document.head.appendChild(script);
+  },100);
+});
+</script>
+</body>
+</html>
