@@ -54,7 +54,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
 .detail-emoji{font-size:40px;text-align:center;padding:16px 0 8px}
 .detail-name{font-family:'IM Fell English',serif;font-size:calc(22px * var(--fs));color:var(--gold)}
 .detail-sub{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--muted2);margin-top:2px}
-.detail-fav{background:none;border:none;font-size:24px;cursor:pointer;flex-shrink:0}
+.detail-fav{background:none;border:1px solid var(--border);border-radius:50%;font-size:22px;cursor:pointer;flex-shrink:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
 .detail-body{padding:0 16px}
 .section-title{font-family:'IM Fell English',serif;font-size:calc(15px * var(--fs));color:var(--gold2);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
 .portions-ctrl{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -99,6 +99,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
 .recipe-thumb-placeholder{width:60px;height:60px;border-radius:10px;flex-shrink:0;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:28px}
 .detail-photo{width:100%;height:220px;object-fit:cover;display:block;background:var(--border)}
 .detail-photo-placeholder{width:100%;height:220px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:64px}
+
+/* SHOPPING LIST */
+.shopping-header{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 6px;gap:10px}
+.shopping-sub{font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted2);flex:1}
+.shopping-share-btn{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--gold);cursor:pointer;white-space:nowrap}
+.shopping-recipe-group{margin-bottom:4px}
+.shopping-recipe-title{font-family:'IM Fell English',serif;font-size:calc(14px * var(--fs));color:var(--gold2);padding:10px 12px 4px;display:flex;align-items:center;gap:8px}
+.shopping-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--border)}
+.shopping-checkbox{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:transparent;transition:.15s}
+.shopping-checkbox.checked{background:var(--gold);border-color:var(--gold);color:#000}
+.shopping-item-text{flex:1;font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--text)}
+.shopping-item.checked .shopping-item-text{color:var(--muted);text-decoration:line-through}
+.shopping-item-qty{font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted2);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -112,6 +125,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
     <button class="tab active" onclick="showTab('list')" id="tab-list">📋 Recettes</button>
     <button class="tab" onclick="showTab('map')" id="tab-map">🗺 Carte</button>
     <button class="tab" onclick="showTab('favs')" id="tab-favs">❤️ Favoris</button>
+    <button class="tab" onclick="showTab('shopping')" id="tab-shopping">🛒 Courses</button>
     <button class="tab" onclick="showTab('quiz')" id="tab-quiz">🎯 Quiz</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings">📱</button>
   </div>
@@ -135,6 +149,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
     <!-- FAVS TAB -->
     <div id="tab-favs-content" style="display:none">
       <div class="recipe-list" id="favs-list" style="padding-top:12px"></div>
+    </div>
+    <!-- SHOPPING TAB -->
+    <div id="tab-shopping-content" style="display:none">
+      <div class="shopping-header">
+        <div class="shopping-sub" id="shopping-sub"></div>
+        <button class="shopping-share-btn" id="shopping-share-btn" onclick="shareAsText()">📤 <span id="shopping-share-label">Partager</span></button>
+      </div>
+      <div class="recipe-list" id="shopping-list" style="padding-top:8px"></div>
     </div>
     <!-- QUIZ TAB -->
     <div id="tab-quiz-content" style="display:none">
@@ -264,6 +286,10 @@ const LANG = {
     'quiz-result':'Résultat','quiz-excellent':'🏆 Excellent !','quiz-bien':'👍 Bien !','quiz-revoir':'📚 À revoir...','fav-empty':'Aucun favori pour l\'instant',
     'fav-empty2':'Ajoutez des ♡ sur vos recettes préférées',
     'back':'‹',
+    'tab-shopping':'🛒 Courses','shopping-empty':'Aucun ingrédient à acheter',
+    'shopping-empty2':'Ajoutez des recettes à vos favoris pour générer votre liste',
+    'shopping-sub-n':'ingrédients de','shopping-sub-recipes':'recette(s) favorite(s)',
+    'shopping-share':'Partager','shopping-checked':'cochés',
   },
   en: {
     'h-title':'🍽 French Recipes','h-sub':'66 emblematic recipes',
@@ -280,6 +306,10 @@ const LANG = {
     'quiz-result':'Result','quiz-excellent':'🏆 Excellent!','quiz-bien':'👍 Good!','quiz-revoir':'📚 Keep practising...','fav-empty':'No favorites yet',
     'fav-empty2':'Add ♡ to your favorite recipes',
     'back':'‹',
+    'tab-shopping':'🛒 Shopping','shopping-empty':'No ingredients to buy',
+    'shopping-empty2':'Add recipes to your favorites to generate your list',
+    'shopping-sub-n':'ingredients from','shopping-sub-recipes':'favorite recipe(s)',
+    'shopping-share':'Share','shopping-checked':'checked',
   }
 };
 
@@ -1021,19 +1051,22 @@ function applyLang(){
   document.getElementById('tab-map').textContent=t('tab-map');
   document.getElementById('tab-list').textContent=t('tab-list');
   document.getElementById('tab-favs').textContent=t('tab-favs');
+  document.getElementById('tab-shopping').textContent=t('tab-shopping');
   document.getElementById('tab-quiz').textContent=t('tab-quiz');
   document.getElementById('tab-settings').textContent=t('tab-settings');
+  document.getElementById('shopping-share-label').textContent=t('shopping-share');
   if(document.getElementById('s-apps'))document.getElementById('s-apps').textContent=t('s-apps');
   renderFilters();
   renderList();
   renderFavs();
+  if(curTab==='shopping')renderShopping();
 }
 
 function showTab(name){
   curTab=name;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  ['map','list','favs','quiz','settings'].forEach(n=>{
+  ['map','list','favs','shopping','quiz','settings'].forEach(n=>{
     document.getElementById('tab-'+n+'-content').style.display=n===name?'':'none';
   });
   const main=document.getElementById('main-area');
@@ -1045,6 +1078,7 @@ function showTab(name){
     main.style.overflow='';
     if(name==='quiz')renderQuiz();
     if(name==='favs')renderFavs();
+    if(name==='shopping')renderShopping();
     if(name==='settings')renderSettings();
   }
 }
@@ -1109,6 +1143,7 @@ function toggleFav(id){
   localStorage.setItem('recettes_favs',JSON.stringify(favorites));
   renderList();
   if(curTab==='favs')renderFavs();
+  if(curTab==='shopping')renderShopping();
   if(curRecipe&&curRecipe.id===id){
     document.getElementById('d-fav').textContent=favorites.includes(id)?'❤️':'🤍';
   }
@@ -1142,6 +1177,87 @@ function renderFavs(){
   });
 }
 
+// SHOPPING LIST
+let shoppingChecked={};
+
+function getShoppingChecked(){
+  try{return JSON.parse(localStorage.getItem('recettes_shopping_checked'))||{};}catch(e){return {};}
+}
+function saveShoppingChecked(){
+  try{localStorage.setItem('recettes_shopping_checked',JSON.stringify(shoppingChecked));}catch(e){}
+}
+
+function renderShopping(){
+  shoppingChecked=getShoppingChecked();
+  const list=document.getElementById('shopping-list');
+  const sub=document.getElementById('shopping-sub');
+  const favItems=RECIPES.filter(r=>favorites.includes(r.id));
+  list.innerHTML='';
+  if(!favItems.length){
+    sub.textContent='';
+    list.innerHTML=`<div class="empty-state"><span class="big">🛒</span>${t('shopping-empty')}<br><small>${t('shopping-empty2')}</small></div>`;
+    return;
+  }
+  let totalIngr=0;
+  favItems.forEach(r=>favItems&&(totalIngr+=getRecipeData(r).ingr.length));
+  sub.textContent=`${totalIngr} ${t('shopping-sub-n')} ${favItems.length} ${t('shopping-sub-recipes')}`;
+  favItems.forEach(r=>{
+    const d=getRecipeData(r);
+    const groupTitle=document.createElement('div');
+    groupTitle.className='shopping-recipe-title';
+    groupTitle.innerHTML=`${r.emoji} ${d.name}`;
+    list.appendChild(groupTitle);
+    d.ingr.forEach(([name,qty],idx)=>{
+      const key=r.id+'_'+idx;
+      const isChecked=!!shoppingChecked[key];
+      const item=document.createElement('div');
+      item.className='shopping-item'+(isChecked?' checked':'');
+      item.innerHTML=`<div class="shopping-checkbox${isChecked?' checked':''}" data-key="${key}">${isChecked?'✓':''}</div>
+        <div class="shopping-item-text">${name}</div>
+        <div class="shopping-item-qty">${qty||''}</div>`;
+      item.querySelector('.shopping-checkbox').addEventListener('click',()=>toggleShoppingItem(key));
+      list.appendChild(item);
+    });
+  });
+}
+
+function toggleShoppingItem(key){
+  shoppingChecked[key]=!shoppingChecked[key];
+  saveShoppingChecked();
+  renderShopping();
+}
+
+function buildShoppingText(){
+  const favItems=RECIPES.filter(r=>favorites.includes(r.id));
+  let txt=(curLang==='fr'?'Liste de courses':'Shopping list')+'\n\n';
+  favItems.forEach(r=>{
+    const d=getRecipeData(r);
+    txt+=r.emoji+' '+d.name+'\n';
+    d.ingr.forEach(([name,qty])=>{
+      txt+='  • '+name+(qty?' — '+qty:'')+'\n';
+    });
+    txt+='\n';
+  });
+  return txt;
+}
+
+function shareAsText(){
+  const txt=buildShoppingText();
+  if(navigator.share){
+    navigator.share({title:curLang==='fr'?'Liste de courses':'Shopping list',text:txt}).catch(()=>{fallbackCopy(txt);});
+  } else {
+    fallbackCopy(txt);
+  }
+}
+
+function fallbackCopy(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>{
+      alert(curLang==='fr'?'Liste copiée !':'List copied!');
+    }).catch(()=>{});
+  }
+}
+
 function openDetail(r){
   curRecipe=r;curPortions=4;
   renderDetail(r);
@@ -1152,16 +1268,18 @@ function renderDetail(r){
   const d=getRecipeData(r);
   document.getElementById('d-name').textContent=d.name;
   document.getElementById('d-sub').textContent=d.sub;
-  const photoWrap=document.getElementById('d-photo-wrap');
-  const bigUrl=PHOTOS[r.id];
-  if(bigUrl){
-    photoWrap.innerHTML=`<img class="detail-photo" src="${bigUrl}" alt="" onerror="this.parentNode.innerHTML='<div class=detail-photo-placeholder>${r.emoji}</div>'">`;
-    document.getElementById('d-emoji').style.display='none';
-  } else {
-    photoWrap.innerHTML='';
-    document.getElementById('d-emoji').style.display='block';
-    document.getElementById('d-emoji').textContent=r.emoji;
-  }
+  try{
+    const photoWrap=document.getElementById('d-photo-wrap');
+    const bigUrl=PHOTOS[r.id];
+    if(bigUrl){
+      photoWrap.innerHTML=`<img class="detail-photo" src="${bigUrl}" alt="" onerror="this.parentNode.innerHTML='<div class=detail-photo-placeholder>${r.emoji}</div>'">`;
+      document.getElementById('d-emoji').style.display='none';
+    } else {
+      photoWrap.innerHTML='';
+      document.getElementById('d-emoji').style.display='block';
+      document.getElementById('d-emoji').textContent=r.emoji;
+    }
+  }catch(e){ console.error('Photo render error:',e); }
   document.getElementById('d-fav').textContent=favorites.includes(r.id)?'❤️':'🤍';
   document.getElementById('d-ingr-title').textContent=t('ingr');
   document.getElementById('d-prep-title').textContent=t('prep');
